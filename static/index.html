@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Relay — General / introductions</title>
-    <link rel="stylesheet" href="/css/styles.css?v=22">
+    <link rel="stylesheet" href="/css/styles.css?v=28">
 </head>
 <body>
     <div class="app">
@@ -81,21 +81,21 @@
 
         <main class="feed">
             <div class="shelf" aria-hidden="true">
-                <div class="shelf-row">
-                    <div class="ann-eyebrow"><span>Announcement</span><time>Today 08:30</time></div>
-                    <strong>Staging maintenance</strong>
+                <a class="shelf-row" href="#ann-staging">
+        <div class="ann-eyebrow"><span>Announcement</span><time>Today 08:30</time></div>
+                    <strong><span class="unread-dot" data-ann="staging"></span>Staging maintenance</strong>
                     <p>Staging will be down about 20 minutes tonight while we migrate the database. I'll post here when it's back.</p>
-                </div>
-                <div class="shelf-row">
-                    <div class="ann-eyebrow"><span>Announcement</span><time>Yesterday 10:15</time></div>
-                    <strong>New member template</strong>
+                </a>
+                <a class="shelf-row" href="#ann-template">
+        <div class="ann-eyebrow"><span>Announcement</span><time>Yesterday 10:15</time></div>
+                    <strong><span class="unread-dot" data-ann="template"></span>New member template</strong>
                     <p>New here? Copy the intro template from the pinned post — name, what you're building, what you need help with.</p>
-                </div>
-                <div class="shelf-row">
-                    <div class="ann-eyebrow"><span>Announcement</span><time>Monday 17:02</time></div>
-                    <strong>Friday showcase signup</strong>
+                </a>
+                <a class="shelf-row" href="#ann-showcase">
+        <div class="ann-eyebrow"><span>Announcement</span><time>Monday 17:02</time></div>
+                    <strong><span class="unread-dot" data-ann="showcase"></span>Friday showcase signup</strong>
                     <p>Demo sign-up for Friday's showcase closes Thursday night. Drop your link in the thread below.</p>
-                </div>
+                </a>
             </div>
 
             <div class="scroll">
@@ -122,13 +122,13 @@
                     <div class="acts"><span class="link">5 replies</span></div></div>
                 </article>
 
-                <article class="msg ann">
-                    <div class="ann-eyebrow"><span>Announcement</span><time>Monday 16:40</time></div>
-                    <strong>House rules refresh</strong>
+                <a class="msg ann" href="#ann-rules">
+        <div class="ann-eyebrow"><span>Announcement</span><time>Monday 16:40</time></div>
+                    <strong><span class="unread-dot" data-ann="rules"></span>House rules refresh</strong>
                     <p>Quick refresh: be kind, no spam, keep job posts in Jobs. The full list is pinned in start-here.</p>
-                </article>
+                </a>
 
-                <div class="day"><span>Yesterday</span></div>
+                <div class="day is-new" id="new-divider"><span>Yesterday · New</span></div>
 
                 <article class="msg">
                     <div class="ava a1">AK</div>
@@ -151,11 +151,11 @@
                     <div class="acts"><span class="link">2 replies</span></div></div>
                 </article>
 
-                <article class="msg ann">
-                    <div class="ann-eyebrow"><span>Announcement</span><time>Yesterday 09:05</time></div>
-                    <strong>Welcome to Relay</strong>
+                <a class="msg ann" href="#ann-welcome">
+        <div class="ann-eyebrow"><span>Announcement</span><time>Yesterday 09:05</time></div>
+                    <strong><span class="unread-dot" data-ann="welcome"></span>Welcome to Relay</strong>
                     <p>New here? Start with + start-here, then say hi in + introductions. Glad to have you.</p>
-                </article>
+                </a>
 
                 <div class="day"><span>Today</span></div>
 
@@ -199,5 +199,94 @@
             </div>
         </main>
     </div>
+
+    <aside class="panel" id="ann-staging" aria-label="Announcement details">
+        <a class="panel-close" href="#">×</a>
+        <div class="ann-eyebrow"><time>Today 08:30</time></div>
+        <h2>Staging maintenance</h2>
+        <p class="panel-meta">Posted by Marco · General / introductions</p>
+        <p>Staging will be down about 20 minutes tonight while we migrate the database. I'll post here when it's back.</p>
+        <p>Expect brief downtime on the demo instance as well. Nothing you need to do.</p>
+    </aside>
+
+    <aside class="panel" id="ann-template" aria-label="Announcement details">
+        <a class="panel-close" href="#">×</a>
+        <div class="ann-eyebrow"><time>Yesterday 10:15</time></div>
+        <h2>New member template</h2>
+        <p class="panel-meta">Posted by Alice · General / introductions</p>
+        <p>New here? Copy the intro template from the pinned post — name, what you're building, what you need help with.</p>
+        <p>Pin it in your subspace once you've filled it in.</p>
+    </aside>
+
+    <aside class="panel" id="ann-showcase" aria-label="Announcement details">
+        <a class="panel-close" href="#">×</a>
+        <div class="ann-eyebrow"><time>Monday 17:02</time></div>
+        <h2>Friday showcase signup</h2>
+        <p class="panel-meta">Posted by Jim · General / introductions</p>
+        <p>Demo sign-up for Friday's showcase closes Thursday night. Drop your link in the thread below.</p>
+        <p>Slots are first come, first served — five minutes each.</p>
+    </aside>
+
+    <aside class="panel" id="ann-rules" aria-label="Announcement details">
+        <a class="panel-close" href="#">×</a>
+        <div class="ann-eyebrow"><time>Monday 16:40</time></div>
+        <h2>House rules refresh</h2>
+        <p class="panel-meta">Posted by Mods · General / introductions</p>
+        <p>Quick refresh: be kind, no spam, keep job posts in Jobs. The full list is pinned in start-here.</p>
+    </aside>
+
+    <aside class="panel" id="ann-welcome" aria-label="Announcement details">
+        <a class="panel-close" href="#">×</a>
+        <div class="ann-eyebrow"><time>Yesterday 09:05</time></div>
+        <h2>Welcome to Relay</h2>
+        <p class="panel-meta">Posted by Mods · General / introductions</p>
+        <p>New here? Start with + start-here, then say hi in + introductions. Glad to have you.</p>
+    </aside>
+
+    <script>
+    (function () {
+      // unread day divider: morphs back into a plain day divider
+      // once the page has been viewed long enough
+      var divider = document.getElementById('new-divider');
+      var WAIT_MS = 5000;
+      var timer = null;
+      function dismiss() {
+        if (!divider || divider.dataset.done) return;
+        divider.dataset.done = '1';
+        divider.classList.add('gone');
+        setTimeout(function () {
+          divider.classList.remove('is-new');
+          divider.querySelector('span').textContent = 'Yesterday';
+          divider.classList.remove('gone');
+        }, 350);
+      }
+      function arm() {
+        clearTimeout(timer);
+        if (!divider || divider.dataset.done || document.hidden) return;
+        timer = setTimeout(dismiss, WAIT_MS);
+      }
+      document.addEventListener('visibilitychange', arm);
+      arm();
+
+      // unread indicators: click clears instantly, no waiting.
+      // announcement dots clear everywhere for that announcement;
+      // club badges clear when their club is opened.
+      document.addEventListener('click', function (e) {
+        var annLink = e.target.closest('a[href^="#ann-"]');
+        if (annLink) {
+          var id = annLink.getAttribute('href').replace('#ann-', '');
+          document.querySelectorAll('.unread-dot[data-ann="' + id + '"]').forEach(function (dot) {
+            dot.remove();
+          });
+          return;
+        }
+        var summary = e.target.closest('.club > summary');
+        if (summary) {
+          var badge = summary.querySelector('.unread');
+          if (badge) badge.remove();
+        }
+      });
+    })();
+    </script>
 </body>
 </html>
