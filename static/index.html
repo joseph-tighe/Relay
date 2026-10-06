@@ -3,281 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClubRust — MESSAGES</title>
-    <link rel="stylesheet" href="/css/styles.css">
+    <title>Relay — General / introductions</title>
+    <link rel="stylesheet" href="/css/styles.css?v=6">
 </head>
 <body>
-    <header class="topbar">
-        <div class="logo">CLUB<span>RUST</span></div>
-        <div class="breadcrumb">
-            <span class="crumb-room"># RUST-BEGINNERS</span>
-            <span class="crumb-sep">/</span>
-            <span class="crumb-sub">HELP-DESK</span>
-            <span class="crumb-tag">SHELL v0.1 — NO FUNCTIONALITY</span>
-        </div>
-        <div class="topbar-right">
-            <div class="online-box"><span class="dot"></span> 128 ONLINE</div>
-            <div class="user-box">JJ</div>
-        </div>
-    </header>
-
     <div class="app">
-        <!-- ============ SIDEBAR ============ -->
         <aside class="sidebar">
-            <div class="side-block search-block">
-                <label class="side-label" for="search">SEARCH [___]</label>
-                <input id="search" class="search-input" type="text" placeholder="SEARCH CHANNELS..." disabled>
-            </div>
+            <div class="side-search" aria-hidden="true"><span>Search channels</span><kbd>⌘K</kbd></div>
 
-            <div class="side-label-row">
-                <span class="side-label">ROOMS (06)</span>
-                <span class="side-label-sm">ANN. / DISC. / SUB</span>
-            </div>
+            <nav class="rooms" aria-label="Clubs">
+                <details class="club">
+                    <summary>Welcome</summary>
+                    <div class="club-body">
+                        <span class="leaf">start-here</span>
+                    </div>
+                </details>
 
-            <nav class="rooms">
-                <!-- ROOM 1 -->
-                <section class="room">
-                    <div class="room-head">
-                        <span class="room-hash">#</span>
-                        <span class="room-name">WELCOME</span>
-                        <span class="room-count">3</span>
+                <details class="club" open>
+                    <summary>General <span class="unread">5</span></summary>
+                    <div class="club-body">
+                        <details class="space current" open>
+                            <summary>introductions</summary>
+                            <span class="leaf deep-leaf">new-members</span>
+                        </details>
+                        <details class="space">
+                            <summary>watercooler</summary>
+                            <span class="leaf deep-leaf">friday-demos</span>
+                            <span class="leaf deep-leaf">playlists</span>
+                        </details>
                     </div>
-                    <a class="chan-row is-announce" href="#" tabindex="-1">
-                        <span class="chan-icon">!</span> ANNOUNCEMENTS <span class="pill">2</span>
-                    </a>
-                    <a class="chan-row" href="#" tabindex="-1">
-                        <span class="chan-icon">#</span> DISCUSSIONS
-                    </a>
-                    <div class="chan-row is-subhead">
-                        <span class="chan-icon">▼</span> SUBSPACES <span class="pill">1</span>
-                    </div>
-                    <div class="subspace-list">
-                        <a class="sub-row" href="#" tabindex="-1">
-                            <span class="sub-name">+ start-here</span>
-                            <span class="sub-mini"><em>!</em> <em>#</em></span>
-                        </a>
-                    </div>
-                </section>
+                </details>
 
-                <!-- ROOM 2 — ACTIVE -->
-                <section class="room is-active">
-                    <div class="room-head">
-                        <span class="room-hash">#</span>
-                        <span class="room-name">RUST-BEGINNERS</span>
-                        <span class="room-badge">ACTIVE</span>
+                <details class="club">
+                    <summary>Build</summary>
+                    <div class="club-body">
+                        <details class="space">
+                            <summary>feedback</summary>
+                            <span class="leaf deep-leaf">critiques</span>
+                        </details>
+                        <span class="leaf">releases</span>
+                        <span class="leaf">ideas</span>
                     </div>
-                    <a class="chan-row is-announce" href="#" tabindex="-1">
-                        <span class="chan-icon">!</span> ANNOUNCEMENTS <span class="pill">5</span>
-                    </a>
-                    <a class="chan-row is-selected" href="#" tabindex="-1">
-                        <span class="chan-icon">#</span> DISCUSSIONS <span class="pill">12</span>
-                    </a>
-                    <div class="chan-row is-subhead is-open">
-                        <span class="chan-icon">▼</span> SUBSPACES <span class="pill">2</span>
-                    </div>
-                    <div class="subspace-list is-expanded">
-                        <div class="sub-block">
-                            <a class="sub-row is-selected" href="#" tabindex="-1">
-                                <span class="sub-name">+ HELP-DESK</span>
-                                <span class="live-dot"></span>
-                            </a>
-                            <a class="sub-chan is-announce" href="#" tabindex="-1"><span>!</span> ANNOUNCEMENTS</a>
-                            <a class="sub-chan is-selected" href="#" tabindex="-1"><span>#</span> DISCUSSIONS</a>
-                        </div>
-                        <div class="sub-block">
-                            <a class="sub-row" href="#" tabindex="-1">
-                                <span class="sub-name">+ SHOW-AND-TELL</span>
-                            </a>
-                            <a class="sub-chan is-announce" href="#" tabindex="-1"><span>!</span> ANNOUNCEMENTS</a>
-                            <a class="sub-chan" href="#" tabindex="-1"><span>#</span> DISCUSSIONS</a>
-                        </div>
-                    </div>
-                </section>
+                </details>
 
-                <!-- ROOM 3 -->
-                <section class="room">
-                    <div class="room-head">
-                        <span class="room-hash">#</span>
-                        <span class="room-name">PROJECTS</span>
-                        <span class="room-count">4</span>
+                <details class="club">
+                    <summary>Events <span class="unread">7</span></summary>
+                    <div class="club-body">
+                        <details class="space">
+                            <summary>meetups</summary>
+                            <span class="leaf deep-leaf">venues</span>
+                        </details>
+                        <span class="leaf">calendar</span>
                     </div>
-                    <a class="chan-row is-announce" href="#" tabindex="-1">
-                        <span class="chan-icon">!</span> ANNOUNCEMENTS <span class="pill">1</span>
-                    </a>
-                    <a class="chan-row" href="#" tabindex="-1">
-                        <span class="chan-icon">#</span> DISCUSSIONS
-                    </a>
-                    <div class="chan-row is-subhead">
-                        <span class="chan-icon">▶</span> SUBSPACES <span class="pill">3</span>
-                    </div>
-                    <div class="subspace-list">
-                        <a class="sub-row" href="#" tabindex="-1"><span class="sub-name">+ game-jam</span><span class="sub-mini"><em>!</em> <em>#</em></span></a>
-                        <a class="sub-row" href="#" tabindex="-1"><span class="sub-name">+ cli-tools</span><span class="sub-mini"><em>!</em> <em>#</em></span></a>
-                        <a class="sub-row" href="#" tabindex="-1"><span class="sub-name">+ web-axum</span><span class="sub-mini"><em>!</em> <em>#</em></span></a>
-                    </div>
-                </section>
+                </details>
 
-                <!-- ROOM 4 -->
-                <section class="room">
-                    <div class="room-head">
-                        <span class="room-hash">#</span>
-                        <span class="room-name">EVENTS</span>
-                        <span class="room-count">2</span>
+                <details class="club">
+                    <summary>Lounge</summary>
+                    <div class="club-body">
+                        <span class="leaf">music</span>
+                        <details class="space">
+                            <summary>pets</summary>
+                            <span class="leaf deep-leaf">pics</span>
+                        </details>
                     </div>
-                    <a class="chan-row is-announce" href="#" tabindex="-1">
-                        <span class="chan-icon">!</span> ANNOUNCEMENTS <span class="pill">7</span>
-                    </a>
-                    <a class="chan-row" href="#" tabindex="-1">
-                        <span class="chan-icon">#</span> DISCUSSIONS
-                    </a>
-                    <div class="chan-row is-subhead">
-                        <span class="chan-icon">▶</span> SUBSPACES <span class="pill">2</span>
-                    </div>
-                    <div class="subspace-list">
-                        <a class="sub-row" href="#" tabindex="-1"><span class="sub-name">+ meetups</span><span class="sub-mini"><em>!</em> <em>#</em></span></a>
-                        <a class="sub-row" href="#" tabindex="-1"><span class="sub-name">+ hack-night</span><span class="sub-mini"><em>!</em> <em>#</em></span></a>
-                    </div>
-                </section>
+                </details>
 
-                <!-- ROOM 5 -->
-                <section class="room">
-                    <div class="room-head">
-                        <span class="room-hash">#</span>
-                        <span class="room-name">OFF-TOPIC</span>
-                        <span class="room-count">9</span>
+                <details class="club">
+                    <summary>Jobs</summary>
+                    <div class="club-body">
+                        <span class="leaf">freelance</span>
                     </div>
-                    <a class="chan-row is-announce" href="#" tabindex="-1">
-                        <span class="chan-icon">!</span> ANNOUNCEMENTS
-                    </a>
-                    <a class="chan-row" href="#" tabindex="-1">
-                        <span class="chan-icon">#</span> DISCUSSIONS <span class="pill">99+</span>
-                    </a>
-                    <div class="chan-row is-subhead">
-                        <span class="chan-icon">▶</span> SUBSPACES <span class="pill">2</span>
-                    </div>
-                    <div class="subspace-list">
-                        <a class="sub-row" href="#" tabindex="-1"><span class="sub-name">+ pets</span><span class="sub-mini"><em>!</em> <em>#</em></span></a>
-                        <a class="sub-row" href="#" tabindex="-1"><span class="sub-name">+ music</span><span class="sub-mini"><em>!</em> <em>#</em></span></a>
-                    </div>
-                </section>
-
-                <!-- ROOM 6 -->
-                <section class="room">
-                    <div class="room-head">
-                        <span class="room-hash">#</span>
-                        <span class="room-name">JOBS</span>
-                        <span class="room-count">1</span>
-                    </div>
-                    <a class="chan-row is-announce" href="#" tabindex="-1">
-                        <span class="chan-icon">!</span> ANNOUNCEMENTS <span class="pill">3</span>
-                    </a>
-                    <a class="chan-row" href="#" tabindex="-1">
-                        <span class="chan-icon">#</span> DISCUSSIONS
-                    </a>
-                    <div class="chan-row is-subhead">
-                        <span class="chan-icon">▶</span> SUBSPACES <span class="pill">1</span>
-                    </div>
-                    <div class="subspace-list">
-                        <a class="sub-row" href="#" tabindex="-1"><span class="sub-name">+ freelance</span><span class="sub-mini"><em>!</em> <em>#</em></span></a>
-                    </div>
-                </section>
+                </details>
             </nav>
 
-            <div class="side-footer">
-                <button type="button" class="btn-new" disabled>+ NEW ROOM</button>
-                <div class="side-note">SHELL ONLY — NOTHING CLICKS</div>
-            </div>
+            <div class="me-row"><span class="me">JJ</span><div><strong>jim</strong></div><span class="gear" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span></div>
         </aside>
 
-        <!-- ============ MAIN FEED ============ -->
         <main class="feed">
-            <div class="feed-head">
-                <div class="feed-title">
-                    <h1># RUST-BEGINNERS <span>/ + HELP-DESK / # DISCUSSIONS</span></h1>
-                    <p class="feed-topic">TOPIC: BORROW CHECKER Q&A — POST ERRORS, GET ROASTED, LEARN. // 342 MEMBERS // 2 SUBSPACES</p>
-                </div>
-                <div class="feed-actions">
-                    <button type="button" disabled>PINNED (3)</button>
-                    <button type="button" disabled>MEMBERS</button>
-                </div>
+            <div class="views"><span>Announcements</span><span class="on">Discussions</span></div>
+
+            <div class="scroll">
+                <div class="day"><span>Monday</span></div>
+
+                <article class="msg">
+                    <div class="ava a5">TP</div>
+                    <div><div class="meta"><strong>Pri</strong><time>18:44</time></div>
+                    <p>Hi all — Pri here, longtime lurker finally saying hello. I build tiny tools for print shops.</p>
+                    <div class="acts"><span class="link">6 replies</span></div></div>
+                </article>
+
+                <article class="msg">
+                    <div class="ava a2">RJ</div>
+                    <div><div class="meta"><strong>Jim</strong><time>18:52</time></div>
+                    <p>Welcome Pri! What stack are the print tools on?</p>
+                    <div class="acts"><span class="link">3 replies</span></div></div>
+                </article>
+
+                <article class="msg">
+                    <div class="ava a4">ZK</div>
+                    <div><div class="meta"><strong>Zed</strong><time>19:20</time></div>
+                    <p>Anyone going to the Saturday showcase? Thinking of demoing my habit tracker.</p>
+                    <div class="acts"><span class="link">5 replies</span></div></div>
+                </article>
+
+                <div class="day"><span>Yesterday</span></div>
+
+                <article class="msg">
+                    <div class="ava a1">AK</div>
+                    <div><div class="meta"><strong>Alice</strong><time>11:03</time></div>
+                    <p>Posted my mapping demo in Build → feedback, roast away.</p>
+                    <div class="acts"><span class="link">6 replies</span></div></div>
+                </article>
+
+                <article class="msg">
+                    <div class="ava a3">M+</div>
+                    <div><div class="meta"><strong>Marco</strong><time>12:15</time></div>
+                    <p>Staging is back up, thanks for your patience.</p>
+                    <div class="acts"><span class="link">1 reply</span></div></div>
+                </article>
+
+                <article class="msg">
+                    <div class="ava a5">TP</div>
+                    <div><div class="meta"><strong>Pri</strong><time>16:40</time></div>
+                    <p>It's on an ancient PHP setup, don't laugh. Migration starts next month.</p>
+                    <div class="acts"><span class="link">2 replies</span></div></div>
+                </article>
+
+                <div class="day"><span>Today</span></div>
+
+                <article class="msg">
+                    <div class="ava a1">AK</div>
+                    <div><div class="meta"><strong>Alice</strong><time>09:12</time></div>
+                    <p>Hey everyone — I'm Alice, working on a small mapping side project. What's the best channel for feedback?</p>
+                    <div class="acts"><span class="link">4 replies</span></div>
+                    <div class="thread">
+                        <div class="reply">
+                            <div class="ava a2">RJ</div>
+                            <div><div class="meta"><strong>Jim</strong><time>09:14</time></div>
+                            <p>Build → feedback is the spot. Post the demo link whenever.</p></div>
+                        </div>
+                        <div class="reply">
+                            <div class="ava a1">AK</div>
+                            <div><div class="meta"><strong>Alice</strong><time>09:16</time></div>
+                            <p>Done — it's up. Be gentle, it's held together with hope.</p></div>
+                        </div>
+                    </div></div>
+                </article>
+
+                <article class="msg">
+                    <div class="ava a2">RJ</div>
+                    <div><div class="meta"><strong>Jim</strong><time>09:15</time></div>
+                    <p>Welcome Alice — post it in <b>+ introductions</b> first, then cross-post the demo to Build → feedback on Friday.</p>
+                    <div class="acts"><span class="link">2 replies</span></div></div>
+                </article>
+
+                <article class="msg">
+                    <div class="ava a3">M+</div>
+                    <div><div class="meta"><strong>Marco</strong><time>09:31</time></div>
+                    <p>Staging will be down ~20 min tonight. I'll post in Announcements when it's back.</p>
+                    <div class="acts"><span class="link">7 replies</span></div></div>
+                </article>
+
             </div>
 
-            <div class="feed-tabs">
-                <span class="tab is-announce">! ANNOUNCEMENTS [5]</span>
-                <span class="tab is-selected"># DISCUSSIONS [12]</span>
-                <span class="tab">▦ SUBSPACES [2]</span>
+            <div class="composer" aria-hidden="true">
+                <div class="box">Write a message…</div>
             </div>
-
-            <div class="feed-scroll">
-                <!-- PINNED ANNOUNCEMENT -->
-                <article class="msg is-pinned">
-                    <div class="msg-side">!</div>
-                    <div class="msg-body">
-                        <div class="msg-meta"><strong>MOD-BOT</strong> <span class="tag">ANNOUNCEMENT</span> <time>TODAY 09:00</time> <span class="tag-pin">PINNED</span></div>
-                        <p>RULES: 1) POST MINIMAL REPRO. 2) NO DM HELP. 3) READ THE COMPILER — IT IS YOUR FRIEND. MEETUP SAT 18:00.</p>
-                    </div>
-                </article>
-
-                <!-- DISCUSSION MESSAGES -->
-                <article class="msg">
-                    <div class="msg-side">AK</div>
-                    <div class="msg-body">
-                        <div class="msg-meta"><strong>alice_k</strong> <time>09:12</time></div>
-                        <p>why does <code>borrow_mut()</code> fail here? pasted full error in thread. brutal.</p>
-                        <div class="msg-foot"><span>↩ 4 REPLIES</span><span>▲ 6</span><span># help-desk</span></div>
-                    </div>
-                </article>
-
-                <article class="msg">
-                    <div class="msg-side">RJ</div>
-                    <div class="msg-body">
-                        <div class="msg-meta"><strong>rustacean_jim</strong> <time>09:15</time></div>
-                        <p>you hold an immutable borrow on line 12. drop it first, then mut. classic.</p>
-                        <div class="msg-foot"><span>↩ 2 REPLIES</span><span>▲ 11</span><span># help-desk</span></div>
-                    </div>
-                </article>
-
-                <article class="msg">
-                    <div class="msg-side">M+</div>
-                    <div class="msg-body">
-                        <div class="msg-meta"><strong>marco</strong> <time>09:31</time></div>
-                        <p>axum ServeDir 404 on /css/styles.css — path issue? serving from /static?</p>
-                        <div class="msg-foot"><span>↩ 7 REPLIES</span><span>▲ 3</span><span># help-desk</span></div>
-                    </div>
-                </article>
-
-                <article class="msg">
-                    <div class="msg-side">ZK</div>
-                    <div class="msg-body">
-                        <div class="msg-meta"><strong>z_king</strong> <time>10:02</time></div>
-                        <p>day 3 of rust: ownership finally clicked. boxes everywhere. boxes.</p>
-                        <div class="msg-foot"><span>↩ 0 REPLIES</span><span>▲ 19</span><span># discussions</span></div>
-                    </div>
-                </article>
-
-                <!-- SUBSPACES OF THIS ROOM -->
-                <div class="subspace-head">▼ SUBSPACES OF #RUST-BEGINNERS — EACH HAS OWN ! / #</div>
-                <div class="subspace-grid">
-                    <article class="sub-card">
-                        <div class="sub-card-head">+ HELP-DESK <span class="tag-live">LIVE</span></div>
-                        <div class="sub-card-row is-a"><strong>!</strong> ANNOUNCEMENTS <span>OFFICE HOURS FRI 17:00 — QUEUE IN THREAD.</span></div>
-                        <div class="sub-card-row"><strong>#</strong> DISCUSSIONS <span>“lifetime elision is lying to me” — 8 replies</span></div>
-                        <div class="sub-card-foot"><span>142 MEMBERS</span><button type="button" disabled>OPEN ▸</button></div>
-                    </article>
-                    <article class="sub-card is-alt">
-                        <div class="sub-card-head">+ SHOW-AND-TELL <span class="tag-new">NEW</span></div>
-                        <div class="sub-card-row is-a"><strong>!</strong> ANNOUNCEMENTS <span>OCT DEMO DAY — SIGNUP CLOSES THU.</span></div>
-                        <div class="sub-card-row"><strong>#</strong> DISCUSSIONS <span>“my cli tui in 400 lines” — 23 replies</span></div>
-                        <div class="sub-card-foot"><span>98 MEMBERS</span><button type="button" disabled>OPEN ▸</button></div>
-                    </article>
-                </div>
-            </div>
-
-            <form class="composer" onsubmit="return false;">
-                <div class="composer-chan">#</div>
-                <input type="text" placeholder="MESSAGE #RUST-BEGINNERS / +HELP-DESK — DISABLED IN SHELL" disabled>
-                <button type="button" disabled>SEND ▸</button>
-            </form>
         </main>
     </div>
 </body>
