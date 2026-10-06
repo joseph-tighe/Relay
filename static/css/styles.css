@@ -55,10 +55,6 @@ summary:hover::before { border-color: #fff; }
 
 /* feed — no subtitles, no cards */
 .feed { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--panel); }
-.views { display: flex; gap: 4px; padding: 0 22px; border-bottom: 1px solid var(--line); }
-.views span, .views a { font-size: 13px; font-weight: 600; color: var(--muted); padding: 11px 10px; border-bottom: 2px solid transparent; margin-bottom: -1px; text-decoration: none; transition: color 0.12s ease; }
-.views a:hover { color: var(--ink); }
-.views .on { color: var(--ink); border-bottom-color: var(--accent); }
 
 .scroll { flex: 1; overflow-y: auto; padding: 14px 22px; max-width: 760px; width: 100%; margin: 0 auto; }
 .day { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; }
@@ -67,9 +63,19 @@ summary:hover::before { border-color: #fff; }
 
 .msg { display: grid; grid-template-columns: 28px 1fr; gap: 12px; padding: 9px 6px; border-radius: 8px; }
 .msg:hover { background: #efe9da; }
-/* inline announcements: identical to a normal post, but sticky — each parks
-   flush under the tabs (top cancels the scroll padding) until the next pushes it out. */
-.msg.ann { position: sticky; top: -14px; z-index: 2; background: var(--panel); border-bottom: 1px solid var(--line); border-radius: 0; }
+/* announcements: title-forward banner, visually distinct from message rows.
+   sticky parks each flush under the tabs until the next pushes it out. */
+.msg.ann { display: block; background: #fbf9f4; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+.msg.ann:hover { background: #fbf9f4; }
+.ann-eyebrow { display: flex; justify-content: space-between; gap: 10px; font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+.msg.ann strong { display: block; font-size: 15px; margin-top: 3px; }
+.msg.ann p { margin: 3px 0 0; font-size: 13.5px; }
+/* pinned shelf: three most recent announcements, centered like the posts, same banner styling */
+.shelf { max-width: 760px; width: 100%; margin: 0 auto; padding: 12px 22px 4px; display: flex; flex-direction: column; gap: 8px; background: var(--panel); }
+.shelf-row { background: #fbf9f4; border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+.shelf-row strong { display: block; font-size: 14px; margin-top: 2px; transition: color 0.12s ease; }
+.shelf-row p { margin: 2px 0 0; font-size: 13px; color: #44403c; }
+.shelf-row:hover strong { color: var(--accent); }
 .ava { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; }
 .a1 { background: #7048e8; color: #fff; } .a2 { background: #1971c2; color: #fff; } .a3 { background: #e8590c; color: #fff; } .a4 { background: #2f9e44; color: #fff; } .a5 { background: #d6336c; color: #fff; }
 .meta { display: flex; align-items: baseline; gap: 8px; }
