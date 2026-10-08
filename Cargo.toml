@@ -7,6 +7,4 @@ edition = "2024"
 tokio = { version = "1", features = ["full"] }
 axum = "0.8.9"
 tower-http = { version = "0.6", features = ["fs"] }
-gluesql = "0.20.0"
-gluesql-core = "0.20.0"
-gluesql_memory_storage = "0.20.0"
+rusqlite = { version = "0.40.2", features = ["bundled"] }

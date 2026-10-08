@@ -3,43 +3,53 @@ use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tower_http::services::ServeDir;
 use axum::extract::Path;
-use gluesql_core::prelude::Glue;
-use gluesql_memory_storage::MemoryStorage;
+use rusqlite::{params, Connection};
 
-async fn get_club(Path(club): Path<String>) -> String {
-    format!("Robotics data")
+fn add_user(db: &Connection, name: &str, email: &str) -> Result<(), Box<dyn std::error::Error>> {
+    db.execute("INSERT INTO users (name, email) VALUES (?1, ?2)", [name, email],)?;
+    Ok(())
 }
-async fn get_user_clubs(Path(club): Path<String>) -> String {
-    format!("Robotics")
+fn add_club(db: &Connection, name: &str, image: &str) -> Result<(), Box<dyn std::error::Error>> {
+    db.execute("INSERT INTO clubs (name, image) VALUES (?1, ?2)", [name, image],)?;
+    Ok(())
 }
-
+fn add_user_to_club(db: &Connection, user_id: i32, club_id: i32) -> Result<(), Box<dyn std::error::Error>> {
+    db.execute("INSERT INTO club_memberships (user_id, club_id) VALUES (?1, ?2)", [user_id, club_id],)?;
+    Ok(())
+}
+fn get_user_by_id(db: &Connection, id: i32) -> Result<String, Box<dyn std::error::Error>> {
+    let mut stmt = db.prepare("SELECT name FROM users WHERE id = ?")?;
+    let user = stmt.query_row([id], |row| row.get::<_, String>(0))?;
+    Ok(user)
+}
+fn get_club_by_id(db: &Connection, id: i32) -> Result<String, Box<dyn std::error::Error>> {
+    let mut stmt = db.prepare("SELECT name FROM clubs WHERE id = ?")?;
+    let club = stmt.query_row([id], |row| row.get::<_, String>(0))?;
+    Ok(club)
+}
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let storage = MemoryStorage::default();
-    let mut glue = Glue::new(storage);
-
-    glue.execute(
-        "CREATE TABLE clubs (id INTEGER, name TEXT, photo_url TEXT)"
-    )?;
-
-    glue.execute(
-        "INSERT INTO clubs VALUES
-         (100, 'Art Club', 'null'),
-         (200, 'Robotics Club', 'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Ftse2.mm.bing.net%2Fth%2Fid%2FOIP.kUWd0lZyt1RufYbfR1prLwHaE8%3Fr%3D0%26pid%3DApi&f=1&ipt=3b559678de45563686890052caf1d66df4c01c1f17cae1142ecd4eca5c924bba&ipo=images')"
-    )?;
-    println!(
-        "{:?}",
-        glue.execute("SELECT name, photo_url FROM clubs WHERE id = 200")?
-    );
+    let db = Connection::open("example.db")?;
     let app = Router::new()
-        .route("/api/get_club/{club}", axum::routing::get(get_club))
-        .route("/api/get_user_clubs/{club}", axum::routing::get(get_user_clubs))
         .fallback_service(ServeDir::new("static"));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     let listener = TcpListener::bind(addr).await?;
-
+    let _ = add_user(&db, "The handsome one", "Joseph");
     println!("Listening on http://{addr}");
+    let mut stmt = db.prepare("SELECT id, name, email FROM users WHERE 1=1")?;
+
+let users = stmt.query_map([], |row| {
+    Ok((
+        row.get::<_, i32>(0)?,
+        row.get::<_, String>(1)?,
+        row.get::<_, String>(2)?,
+    ))
+})?;
+
+for user in users {
+    println!("{:?}", user?);
+}
 
     axum::serve(listener, app).await?;
 
