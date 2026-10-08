@@ -1,4 +1,4 @@
-/* Relay shell — simplified: sidebar search, collapsible rooms, no cards. */
+/* Relay shell — bare frame. Content patterns (messages, nav) kept for reuse. */
 :root {
   --bg: #f6f4ee;
   --panel: #fff;
@@ -53,32 +53,16 @@ summary:hover::before { border-color: #fff; }
 .me-row .gear svg { display: block; }
 .me-row .gear:hover { background: rgba(255,255,255,.08); color: #fff; }
 
-/* feed — no subtitles, no cards */
+/* feed */
 .feed { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--panel); }
 
 .scroll { flex: 1; overflow-y: auto; padding: 14px 22px; max-width: 760px; width: 100%; margin: 0 auto; }
-.day { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; transition: opacity 0.35s ease; }
-.day.gone { opacity: 0; }
+.day { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; }
 .day::before, .day::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .day span { font-family: var(--mono); font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 99px; padding: 1px 10px; }
 
 .msg { display: grid; grid-template-columns: 28px 1fr; gap: 12px; padding: 9px 6px; border-radius: 8px; }
 .msg:hover { background: #efe9da; }
-/* announcements: title-forward banner, visually distinct from message rows.
-   sticky parks each flush under the tabs until the next pushes it out. */
-.msg.ann { display: block; background: #fbf9f4; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
-.msg.ann:hover { background: #fbf9f4; }
-.msg.ann strong { transition: color 0.12s ease; }
-a.msg.ann:hover strong { color: var(--accent); }
-.ann-eyebrow { display: flex; justify-content: space-between; gap: 10px; font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
-.msg.ann strong { display: block; font-size: 15px; margin-top: 3px; }
-.msg.ann p { margin: 3px 0 0; font-size: 13.5px; }
-/* pinned shelf: three most recent announcements, centered like the posts, same banner styling */
-.shelf { max-width: 760px; width: 100%; margin: 0 auto; padding: 12px 22px 4px; display: flex; flex-direction: column; gap: 8px; background: var(--panel); }
-.shelf-row { background: #fbf9f4; border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
-.shelf-row strong { display: block; font-size: 14px; margin-top: 2px; transition: color 0.12s ease; }
-.shelf-row p { margin: 2px 0 0; font-size: 13px; color: #44403c; }
-.shelf-row:hover strong { color: var(--accent); }
 .ava { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 700; }
 .a1 { background: #7048e8; color: #fff; } .a2 { background: #1971c2; color: #fff; } .a3 { background: #e8590c; color: #fff; } .a4 { background: #2f9e44; color: #fff; } .a5 { background: #d6336c; color: #fff; }
 .meta { display: flex; align-items: baseline; gap: 8px; }
@@ -87,31 +71,8 @@ a.msg.ann:hover strong { color: var(--accent); }
 .msg p { margin: 1px 0 0; font-size: 14px; color: #2b271e; }
 .acts { display: flex; gap: 10px; margin-top: 5px; font-size: 12px; }
 .link { color: var(--accent); font-weight: 600; }
-.thread { margin: 8px 0 2px 18px; padding-left: 12px; border-left: 2px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
-.reply { display: grid; grid-template-columns: 22px 1fr; gap: 10px; }
-.reply .ava { width: 22px; height: 22px; font-size: 9px; }
-.reply p { font-size: 13.5px; }
 
 .composer { padding: 12px 22px 16px; background: var(--panel); }
 .composer .box { max-width: 760px; margin: 0 auto; border: 1px solid var(--line); border-radius: 8px; padding: 11px 14px; font-size: 13.5px; color: var(--muted); background: var(--bg); }
 
 @media (max-width: 760px) { .sidebar { display: none; } }
-
-/* unread conversation divider: fades out once the page has been viewed long enough */
-/* unread day divider: red-tinted until viewed long enough, then morphs back plain */
-.day.is-new::before, .day.is-new::after { background: #e03131; }
-.day.is-new > span { color: #e03131; border-color: #e03131; }
-/* unread announcement dot: removed by JS once that announcement is opened */
-.unread-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #e03131; margin-right: 8px; }
-
-/* announcement detail panel — pure CSS :target slide-over, no JS */
-a.msg.ann, a.shelf-row { text-decoration: none; color: inherit; }
-.msg.ann { cursor: pointer; }
-.panel { position: fixed; top: 0; right: 0; height: 100vh; width: min(360px, 90vw); background: var(--panel); border-left: 1px solid var(--line); box-shadow: -12px 0 32px rgba(15, 23, 42, 0.14); transform: translateX(105%); transition: transform 0.22s ease; z-index: 50; padding: 22px; overflow-y: auto; }
-.panel:target { transform: none; }
-.panel-close { float: right; font-size: 22px; line-height: 1; color: var(--muted); text-decoration: none; padding: 2px 8px; border-radius: 6px; transition: background-color 0.12s ease, color 0.12s ease; }
-.panel-close:hover { background: var(--bg); color: var(--ink); }
-.panel h2 { margin: 8px 40px 4px 0; font-size: 20px; letter-spacing: -0.01em; }
-.panel .ann-eyebrow { margin-right: 36px; }
-.panel-meta { font-size: 12.5px; color: var(--muted); margin: 0 0 12px; }
-.panel p { font-size: 14px; }
