@@ -25,6 +25,11 @@ body { font-family: var(--sans); background: var(--bg); color: var(--ink); heigh
 .side-search kbd { font-family: var(--mono); font-size: 10.5px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 5px; padding: 1px 6px; }
 .rooms { flex: 1; overflow-y: auto; padding: 6px 8px 12px; display: flex; flex-direction: column; gap: 2px; }
 .club { border-radius: 6px; }
+/* JS-rendered clubs: div.club > div.club-name (+ img, unstyled for now) */
+div.club { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; cursor: pointer; transition: background-color 0.12s ease; }
+div.club:hover { background: rgba(255,255,255,.06); }
+.club-name { font-size: 13px; font-weight: 700; color: var(--side-text); transition: color 0.12s ease; }
+div.club:hover .club-name { color: #fff; }
 .club summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--side-text); padding: 6px 8px; border-radius: 5px; }
 .club summary::-webkit-details-marker, .space summary::-webkit-details-marker { display: none; }
 /* border chevrons — symmetric, so rotation never shifts position */
@@ -67,12 +72,13 @@ summary:hover::before { border-color: #fff; }
 .a1 { background: #7048e8; color: #fff; } .a2 { background: #1971c2; color: #fff; } .a3 { background: #e8590c; color: #fff; } .a4 { background: #2f9e44; color: #fff; } .a5 { background: #d6336c; color: #fff; }
 .meta { display: flex; align-items: baseline; gap: 8px; }
 .meta strong { font-size: 13.5px; }
-.meta time { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.meta time { font-family: var(--mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; letter-spacing: .02em; white-space: nowrap; cursor: default; }
 .msg p { margin: 1px 0 0; font-size: 14px; color: #2b271e; }
 .acts { display: flex; gap: 10px; margin-top: 5px; font-size: 12px; }
 .link { color: var(--accent); font-weight: 600; }
 
 .composer { padding: 12px 22px 16px; background: var(--panel); }
-.composer .box { max-width: 760px; margin: 0 auto; border: 1px solid var(--line); border-radius: 8px; padding: 11px 14px; font-size: 13.5px; color: var(--muted); background: var(--bg); }
+.composer .box { display: block; max-width: 760px; width: 100%; margin: 0 auto; border: 1px solid var(--line); border-radius: 8px; padding: 11px 14px; font-family: inherit; font-size: 13.5px; color: var(--ink); background: var(--bg); outline: none; }
+.composer .box::placeholder { color: var(--muted); }
 
 @media (max-width: 760px) { .sidebar { display: none; } }

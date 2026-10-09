@@ -30,5 +30,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )",
         [],
     )?;
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY,
+            user_id INTEGER,
+            club_id INTEGER,
+            content TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+            FOREIGN KEY (user_id) REFERENCES users(id),
+            FOREIGN KEY (club_id) REFERENCES clubs(id)
+        )",
+        [],
+    )?;
     Ok(())
 }
