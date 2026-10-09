@@ -43,5 +43,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )",
         [],
     )?;
+    db.execute(
+        "CREATE TABLE IF NOT EXISTS auth (
+            user_id INTEGER PRIMARY KEY,
+            passwordhash TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )",
+        [],
+    )?;
     Ok(())
 }

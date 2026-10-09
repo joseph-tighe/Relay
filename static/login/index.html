@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relay — Log in or sign up</title>
+    <style>
+        :root {
+            --bg: #f6f4ee;
+            --panel: #fff;
+            --ink: #201c15;
+            --muted: #75705f;
+            --line: #e7e1d3;
+            --accent: #d9480f;
+            --sans: "Inter", -apple-system, "Segoe UI", sans-serif;
+            --mono: ui-monospace, "SF Mono", Menlo, monospace;
+        }
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; }
+        body {
+            font-family: var(--sans);
+            background: var(--bg);
+            color: var(--ink);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            font-size: 14px;
+        }
+        .card {
+            width: 100%;
+            max-width: 380px;
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 28px rgba(15, 23, 42, 0.08);
+        }
+        .brand { font-weight: 800; font-size: 22px; letter-spacing: -0.02em; margin: 0 0 4px; }
+        .sub { margin: 0 0 20px; font-size: 13px; color: var(--muted); }
+        .tabs { display: flex; gap: 6px; margin-bottom: 18px; }
+        .tabs label {
+            flex: 1;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 8px;
+            border-radius: 99px;
+            color: var(--muted);
+            cursor: pointer;
+            transition: background-color 0.12s ease, color 0.12s ease;
+        }
+        .tabs label:hover { color: var(--ink); }
+        input[type="radio"] { display: none; }
+        #tab-login:checked ~ .tabs .for-login,
+        #tab-signup:checked ~ .tabs .for-signup { background: var(--ink); color: #fff; }
+        form { display: none; flex-direction: column; gap: 12px; }
+        #tab-login:checked ~ .form-login { display: flex; }
+        #tab-signup:checked ~ .form-signup { display: flex; }
+        label.field { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; }
+        input[type="text"], input[type="email"], input[type="password"] {
+            font-family: inherit;
+            font-size: 14px;
+            padding: 10px 12px;
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            outline: none;
+            color: var(--ink);
+            background: #fff;
+        }
+        input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus { border-color: var(--ink); }
+        button {
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            padding: 11px;
+            border: 0;
+            border-radius: 99px;
+            background: var(--accent);
+            color: #fff;
+            cursor: pointer;
+            margin-top: 4px;
+        }
+        .hint { font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: center; margin: 14px 0 0; }
+    </style>
+</head>
+<body>
+    <main class="card">
+        <h1 class="brand">Relay</h1>
+        <p class="sub">Log in or create an account to continue.</p>
+
+        <input type="radio" name="tab" id="tab-login" checked>
+        <input type="radio" name="tab" id="tab-signup">
+        <div class="tabs">
+            <label class="for-login" for="tab-login">Log in</label>
+            <label class="for-signup" for="tab-signup">Sign up</label>
+        </div>
+
+        <form class="form-login" onsubmit="return false;">
+            <label class="field">Email
+                <input type="email" name="email" placeholder="you@example.com" autocomplete="email">
+            </label>
+            <label class="field">Password
+                <input type="password" name="password" placeholder="••••••••" autocomplete="current-password">
+            </label>
+            <button type="button">Log in</button>
+        </form>
+
+        <form class="form-signup" onsubmit="return false;">
+            <label class="field">Name
+                <input type="text" name="name" placeholder="What should we call you?" autocomplete="username">
+            </label>
+            <label class="field">Email
+                <input type="email" name="email" placeholder="you@example.com" autocomplete="email">
+            </label>
+            <label class="field">Password
+                <input type="password" name="password" placeholder="At least 8 characters" autocomplete="new-password">
+            </label>
+            <button type="button">Create account</button>
+        </form>
+        <script src="/js/signup.js" type="module"></script>
+    </main>
+</body>
+</html>

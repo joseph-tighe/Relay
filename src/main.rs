@@ -12,10 +12,17 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 
-fn add_user(db: &Connection, name: &str, email: &str) -> Result<(), Box<dyn std::error::Error>> {
-    db.execute("INSERT INTO users (name, email) VALUES (?1, ?2)", [name, email],)?;
+fn add_user(db: &mut Connection, name: &str, email: &str, password_hash: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let transaction = db.transaction()?;
+    transaction.execute("INSERT INTO users (name, email) VALUES (?1, ?2)", [name, email])?;
+    let user_id = transaction.last_insert_rowid();
+    transaction.execute(
+        "INSERT INTO auth (user_id, passwordhash) VALUES (?1, ?2)",
+        rusqlite::params![user_id, password_hash],
+    )?;
+    transaction.commit()?;
     Ok(())
 }
 fn add_club(db: &Connection, name: &str, image: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -107,6 +114,16 @@ fn check_authenticity(input: &str) -> bool {
     }
     true
 }
+fn check_password(id: i32, passwordHash: &str, db: &Connection) -> Result<(), Box<dyn std::error::Error>> {
+    let mut stmt = db.prepare("SELECT passwordhash FROM auth WHERE user_id = ?1")?;
+    let password_hash = stmt.query_row([id], |row| {
+        Ok(row.get::<_, String>(0)?)
+    })?;
+    if password_hash != passwordHash {
+        return Err("Invalid password".into());
+    }
+    Ok(())
+}
 async fn get_user_json_by_id(
     Path(id): Path<i32>,
     State(db): State<Arc<Mutex<Connection>>>,
@@ -163,23 +180,97 @@ async fn create_message(
     let json = format!("{{\"text\": \"{}\", \"userId\": {}, \"timestamp\": \"{}\"}}", message[message.len()-1].0, message[message.len()-1].1, message[message.len()-1].2);
     Ok(([(header::CONTENT_TYPE, "application/json")], json))
 }
+fn email_exists(db: &Connection, email: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    let exists = db.query_row(
+        "SELECT EXISTS(SELECT 1 FROM users WHERE email = ?1)",
+        [email],
+        |row| row.get(0),
+    )?;
+    Ok(exists)
+}
+#[derive(Debug, serde::Deserialize)]
+struct UserPassword {
+    name: String,
+    email: String,
+    password: String,
+}
+#[derive(Debug, serde::Deserialize)]
+struct Login {
+    email: String,
+    password: String,
+}
+fn get_user_auth_by_email(
+    db: &Connection,
+    email: &str,
+) -> Result<Option<(String, String, String)>, Box<dyn std::error::Error>> {
+    let mut stmt = db.prepare(
+        "SELECT users.name, users.email, auth.passwordhash
+         FROM users JOIN auth ON auth.user_id = users.id
+         WHERE users.email = ?1",
+    )?;
+    let user = stmt
+        .query_row([email], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .optional()?;
+    Ok(user)
+}
+async fn sign_up(
+    State(db): State<Arc<Mutex<Connection>>>,
+    Json(user): Json<UserPassword>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+   check_authenticity(&user.name)
+        .then(|| ())
+        .ok_or((StatusCode::BAD_REQUEST, "Invalid user name".to_string()))?;
+
+    let mut db = db.lock().await;
+    if email_exists(&db, &user.email)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))? {
+        return Err((StatusCode::BAD_REQUEST, "Email already exists".to_string()));
+    }
+    add_user(&mut db, &user.name, &user.email, &user.password)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let user_id = db.last_insert_rowid();
+    add_user_to_club(&mut db, user_id.to_string().parse::<i32>().unwrap(), 1);
+    let json = format!("{{\"name\": \"{}\", \"email\": \"{}\", \"id\": {}}}", user.name, user.email, user_id);
+    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+}
+async fn login(
+    State(db): State<Arc<Mutex<Connection>>>,
+    Json(user): Json<Login>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let db = db.lock().await;
+    let stored_user = get_user_auth_by_email(&db, &user.email)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let Some((user_name, user_email, password_hash)) = stored_user else {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid email or password".to_string()));
+    };
+    if user.password != password_hash {
+        return Err((StatusCode::BAD_REQUEST, "Invalid password".to_string()));
+    }
+    let json = format!("{{\"name\": \"{user_name}\", \"email\": \"{user_email}\"}}");
+    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+}
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db = Connection::open("example.db")?;
-    let _ = add_user(&db, "The handsome one", "Joseph");
-    let _ = add_club(&db, "The club", "The image");
-    let _ = add_user_to_club(&db, 1, 1);
-    let _ = add_message(&db, 1, 1, "Hello");
-    let (user_name, user_email) = get_user_by_id(&db, 1)?;
-    println!("{user_name}\n{user_email}");
-
     let db = Arc::new(Mutex::new(db));
+    {
+        let database = db.lock().await;
+        let _ = add_club(&database, "Testing", "The image")?;
+    }
     let app = Router::new()
         .route("/api/user/{id}", get(get_user_json_by_id))
         .route("/api/clubs-in/{id}", get(get_clubs_in_by_user_id))
         .route("/api/club/{id}", get(get_club_json_by_id))
         .route("/api/club/{id}/messages", get(get_messages_by_club_id))
         .route("/api/club/{id}/messages/new", post(create_message))
+        .route("/api/signup", post(sign_up))
+        .route("/api/login", post(login))
         .with_state(db)
         .fallback_service(ServeDir::new("static"));
 

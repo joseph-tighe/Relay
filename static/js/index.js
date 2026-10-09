@@ -1,5 +1,7 @@
-let userId = 1;
-
+let userId = parseInt(sessionStorage.getItem("userId"));
+if (!userId) {
+    window.location.href = "/login";
+}
 function getUserById(id) {
     return fetch(`/api/user/${id}`)
         .then(res => res.json())
@@ -85,9 +87,11 @@ async function renderMessage(message) {
     document.querySelector(".scroll").appendChild(messageDiv);
 }
 let IdToUser = {userId: userData};
-for (let message of messages[0]) {
-    console.log(message.text, message.userId, message.timestamp);
-    await renderMessage(message);
+if (messages.length > 0) {
+    for (let message of messages[0]) {
+        console.log(message.text, message.userId, message.timestamp);
+        await renderMessage(message);
+    }
 }
 document.getElementById("message-input").addEventListener("keydown", e => {
     if (e.key === "Enter") {
