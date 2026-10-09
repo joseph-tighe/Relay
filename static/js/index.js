@@ -30,7 +30,16 @@ function changeMyName(name) {
     document.querySelector(".me").innerText = name[0];
 }
 function getMessagesByClubId(clubId) {
-    return fetch(`/api/club/${clubId}/messages`)
+    return fetch(`/api/club/${clubId}/messages`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            "passwordhash": sessionStorage.getItem("passHash"),
+            "user_id": userId
+        })
+    })
         .then(res => res.json())
         .then(messages => messages);
 }
@@ -108,6 +117,7 @@ document.getElementById("message-input").addEventListener("keydown", e => {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
+                "password": sessionStorage.getItem("passHash"),
                 "text": message,
                 "user_id": userId
             })

@@ -47,6 +47,7 @@ document.getElementsByClassName("form-signup")[0].getElementsByTagName("button")
     }).then(readJsonResponse)
         .then(user => {
             sessionStorage.setItem("userId", user.id);
+            sessionStorage.setItem("passHash", passwordHash);
             window.location.href = "/";
         }).catch(error => console.error("Signup failed:", error));
 });
@@ -69,6 +70,7 @@ document.getElementsByClassName("form-login")[0].getElementsByTagName("button")[
     }).then(readJsonResponse)
         .then(user => {
             sessionStorage.setItem("userId", user.id);
+            sessionStorage.setItem("passHash", passwordHash);
             window.location.href = "/";
         }).catch(error => console.error("Login failed:", error));
 });

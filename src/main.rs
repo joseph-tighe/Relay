@@ -1,22 +1,29 @@
 use axum::{
-    Router,
+    Json, Router,
     extract::{Path, State},
     http::{StatusCode, header},
     response::IntoResponse,
     routing::get,
     routing::post,
-    Json
 };
+use rusqlite::{Connection, OptionalExtension};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
-use rusqlite::{Connection, OptionalExtension};
 
-fn add_user(db: &mut Connection, name: &str, email: &str, password_hash: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn add_user(
+    db: &mut Connection,
+    name: &str,
+    email: &str,
+    password_hash: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let transaction = db.transaction()?;
-    transaction.execute("INSERT INTO users (name, email) VALUES (?1, ?2)", [name, email])?;
+    transaction.execute(
+        "INSERT INTO users (name, email) VALUES (?1, ?2)",
+        [name, email],
+    )?;
     let user_id = transaction.last_insert_rowid();
     transaction.execute(
         "INSERT INTO auth (user_id, passwordhash) VALUES (?1, ?2)",
@@ -26,28 +33,47 @@ fn add_user(db: &mut Connection, name: &str, email: &str, password_hash: &str) -
     Ok(())
 }
 fn add_club(db: &Connection, name: &str, image: &str) -> Result<(), Box<dyn std::error::Error>> {
-    db.execute("INSERT INTO clubs (name, image) VALUES (?1, ?2)", [name, image],)?;
+    db.execute(
+        "INSERT INTO clubs (name, image) VALUES (?1, ?2)",
+        [name, image],
+    )?;
     Ok(())
 }
-fn add_user_to_club(db: &Connection, user_id: i32, club_id: i32) -> Result<(), Box<dyn std::error::Error>> {
-    db.execute("INSERT INTO club_memberships (user_id, club_id) VALUES (?1, ?2)", [user_id, club_id],)?;
+fn add_user_to_club(
+    db: &Connection,
+    user_id: i32,
+    club_id: i32,
+) -> Result<(), Box<dyn std::error::Error>> {
+    db.execute(
+        "INSERT INTO club_memberships (user_id, club_id) VALUES (?1, ?2)",
+        [user_id, club_id],
+    )?;
     Ok(())
 }
-fn get_user_by_id(db: &Connection, id: i32) -> Result<(String, String), Box<dyn std::error::Error>> {
+fn get_user_by_id(
+    db: &Connection,
+    id: i32,
+) -> Result<(String, String), Box<dyn std::error::Error>> {
     let mut stmt = db.prepare("SELECT name, email FROM users WHERE id = ?")?;
     let user = stmt.query_row([id], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
     })?;
     Ok(user)
 }
-fn get_club_by_id(db: &Connection, id: i32) -> Result<(String, String), Box<dyn std::error::Error>> {
+fn get_club_by_id(
+    db: &Connection,
+    id: i32,
+) -> Result<(String, String), Box<dyn std::error::Error>> {
     let mut stmt = db.prepare("SELECT name, image FROM clubs WHERE id = ?1")?;
     let club = stmt.query_row([id], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
     })?;
     Ok(club)
 }
-fn get_clubs_by_user_id(db: &Connection, user_id: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+fn get_clubs_by_user_id(
+    db: &Connection,
+    user_id: i32,
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut stmt = db.prepare("SELECT club_id FROM club_memberships WHERE user_id = ?1")?;
     let clubs_ids_a = stmt.query_map([user_id], |row| row.get::<_, i32>(0))?;
     let mut clubs_ids = Vec::new();
@@ -56,17 +82,30 @@ fn get_clubs_by_user_id(db: &Connection, user_id: i32) -> Result<Vec<i32>, Box<d
     }
     Ok(clubs_ids)
 }
-fn add_message(db: &Connection, user_id: i32, club_id: i32, content: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn add_message(
+    db: &Connection,
+    user_id: i32,
+    club_id: i32,
+    content: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     db.execute(
         "INSERT INTO messages (user_id, club_id, content) VALUES (?1, ?2, ?3)",
         rusqlite::params![user_id, club_id, content],
     )?;
     Ok(())
 }
-fn read_messages_by_club_id(db: &Connection, club_id: i32) -> Result<Vec<(String, i32, String)>, Box<dyn std::error::Error>> {
-    let mut stmt = db.prepare("SELECT content, user_id, timestamp FROM messages WHERE club_id = ?1")?;
+fn read_messages_by_club_id(
+    db: &Connection,
+    club_id: i32,
+) -> Result<Vec<(String, i32, String)>, Box<dyn std::error::Error>> {
+    let mut stmt =
+        db.prepare("SELECT content, user_id, timestamp FROM messages WHERE club_id = ?1")?;
     let messages = stmt.query_map([club_id], |row| {
-        Ok((row.get::<_, String>(0)?, row.get::<_, i32>(1)?, row.get::<_, String>(2)?))
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, i32>(1)?,
+            row.get::<_, String>(2)?,
+        ))
     })?;
     let mut messages_vec = Vec::new();
     for message in messages {
@@ -74,16 +113,27 @@ fn read_messages_by_club_id(db: &Connection, club_id: i32) -> Result<Vec<(String
     }
     Ok(messages_vec)
 }
+#[derive(serde::Deserialize)]
+struct Auth {
+    user_id: i32,
+    passwordhash: String,
+}
 async fn get_messages_by_club_id(
     Path(id): Path<i32>,
     State(db): State<Arc<Mutex<Connection>>>,
+    Json(auth): Json<Auth>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let db = db.lock().await;
+    check_password(auth.user_id, &auth.passwordhash, &db)
+        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
     let messages = read_messages_by_club_id(&db, id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     let mut messages_json = Vec::new();
     for message in messages {
-        messages_json.push(format!("{{\"text\": \"{}\", \"userId\": {}, \"timestamp\": \"{}\"}}", message.0, message.1, message.2));
+        messages_json.push(format!(
+            "{{\"text\": \"{}\", \"userId\": {}, \"timestamp\": \"{}\"}}",
+            message.0, message.1, message.2
+        ));
     }
     let json = format!("{{\"messages\": [{}]}}", messages_json.join(", "));
     Ok(([(header::CONTENT_TYPE, "application/json")], json))
@@ -114,11 +164,13 @@ fn check_authenticity(input: &str) -> bool {
     }
     true
 }
-fn check_password(id: i32, passwordHash: &str, db: &Connection) -> Result<(), Box<dyn std::error::Error>> {
+fn check_password(
+    id: i32,
+    passwordHash: &str,
+    db: &Connection,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut stmt = db.prepare("SELECT passwordhash FROM auth WHERE user_id = ?1")?;
-    let password_hash = stmt.query_row([id], |row| {
-        Ok(row.get::<_, String>(0)?)
-    })?;
+    let password_hash = stmt.query_row([id], |row| Ok(row.get::<_, String>(0)?))?;
     if password_hash != passwordHash {
         return Err("Invalid password".into());
     }
@@ -164,20 +216,34 @@ struct Message {
     text: String,
     user_id: i32,
 }
+#[derive(serde::Deserialize)]
+struct NewMessage {
+    password: String,
+    text: String,
+    user_id: i32,
+}
 async fn create_message(
     Path(id): Path<i32>,
     State(db): State<Arc<Mutex<Connection>>>,
-    Json(message): Json<Message>,
+    Json(message): Json<NewMessage>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    check_authenticity(&message.text)
-        .then(|| ())
-        .ok_or((StatusCode::BAD_REQUEST, "Invalid message content".to_string()))?;
     let db = db.lock().await;
+    check_password(message.user_id, &message.password, &db)
+        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
+    check_authenticity(&message.text).then(|| ()).ok_or((
+        StatusCode::BAD_REQUEST,
+        "Invalid message content".to_string(),
+    ))?;
     add_message(&db, message.user_id, id, &message.text)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     let message = read_messages_by_club_id(&db, id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let json = format!("{{\"text\": \"{}\", \"userId\": {}, \"timestamp\": \"{}\"}}", message[message.len()-1].0, message[message.len()-1].1, message[message.len()-1].2);
+    let json = format!(
+        "{{\"text\": \"{}\", \"userId\": {}, \"timestamp\": \"{}\"}}",
+        message[message.len() - 1].0,
+        message[message.len() - 1].1,
+        message[message.len() - 1].2
+    );
     Ok(([(header::CONTENT_TYPE, "application/json")], json))
 }
 fn email_exists(db: &Connection, email: &str) -> Result<bool, Box<dyn std::error::Error>> {
@@ -202,18 +268,19 @@ struct Login {
 fn get_user_auth_by_email(
     db: &Connection,
     email: &str,
-) -> Result<Option<(String, String, String)>, Box<dyn std::error::Error>> {
+) -> Result<Option<(i32, String, String, String)>, Box<dyn std::error::Error>> {
     let mut stmt = db.prepare(
-        "SELECT users.name, users.email, auth.passwordhash
+        "SELECT users.id, users.name, users.email, auth.passwordhash
          FROM users JOIN auth ON auth.user_id = users.id
          WHERE users.email = ?1",
     )?;
     let user = stmt
         .query_row([email], |row| {
             Ok((
-                row.get::<_, String>(0)?,
+                row.get::<_, i32>(0)?,
                 row.get::<_, String>(1)?,
                 row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
             ))
         })
         .optional()?;
@@ -223,20 +290,24 @@ async fn sign_up(
     State(db): State<Arc<Mutex<Connection>>>,
     Json(user): Json<UserPassword>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-   check_authenticity(&user.name)
+    check_authenticity(&user.name)
         .then(|| ())
         .ok_or((StatusCode::BAD_REQUEST, "Invalid user name".to_string()))?;
 
     let mut db = db.lock().await;
     if email_exists(&db, &user.email)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))? {
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+    {
         return Err((StatusCode::BAD_REQUEST, "Email already exists".to_string()));
     }
     add_user(&mut db, &user.name, &user.email, &user.password)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     let user_id = db.last_insert_rowid();
-    add_user_to_club(&mut db, user_id.to_string().parse::<i32>().unwrap(), 1);
-    let json = format!("{{\"name\": \"{}\", \"email\": \"{}\", \"id\": {}}}", user.name, user.email, user_id);
+    let _ = add_user_to_club(&mut db, user_id.to_string().parse::<i32>().unwrap(), 1);
+    let json = format!(
+        "{{\"name\": \"{}\", \"email\": \"{}\", \"id\": {}}}",
+        user.name, user.email, user_id
+    );
     Ok(([(header::CONTENT_TYPE, "application/json")], json))
 }
 async fn login(
@@ -244,15 +315,24 @@ async fn login(
     Json(user): Json<Login>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let db = db.lock().await;
+    if !email_exists(&db, &user.email)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+    {
+        return Err((StatusCode::BAD_REQUEST, "Email doesn't exists".to_string()));
+    }
     let stored_user = get_user_auth_by_email(&db, &user.email)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let Some((user_name, user_email, password_hash)) = stored_user else {
-        return Err((StatusCode::UNAUTHORIZED, "Invalid email or password".to_string()));
+    let Some((user_id, user_name, user_email, password_hash)) = stored_user else {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "Invalid email or password".to_string(),
+        ));
     };
     if user.password != password_hash {
         return Err((StatusCode::BAD_REQUEST, "Invalid password".to_string()));
     }
-    let json = format!("{{\"name\": \"{user_name}\", \"email\": \"{user_email}\"}}");
+    let json =
+        format!("{{\"id\": {user_id}, \"name\": \"{user_name}\", \"email\": \"{user_email}\"}}");
     Ok(([(header::CONTENT_TYPE, "application/json")], json))
 }
 #[tokio::main]
@@ -267,7 +347,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/user/{id}", get(get_user_json_by_id))
         .route("/api/clubs-in/{id}", get(get_clubs_in_by_user_id))
         .route("/api/club/{id}", get(get_club_json_by_id))
-        .route("/api/club/{id}/messages", get(get_messages_by_club_id))
+        .route("/api/club/{id}/messages", post(get_messages_by_club_id))
         .route("/api/club/{id}/messages/new", post(create_message))
         .route("/api/signup", post(sign_up))
         .route("/api/login", post(login))
