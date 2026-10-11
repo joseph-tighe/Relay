@@ -4,6 +4,7 @@ pub fn get_subspaces_by_club_id(
     db: &Connection,
     club_id: i32,
 ) -> Result<Vec<(i32, String, Option<i32>)>, Box<dyn std::error::Error>> {
+    //Select all subspaces from the subspaces table in a club
     let mut stmt = db.prepare(
         "SELECT id, name, parent_id FROM subspaces WHERE club_id = ?1 ORDER BY id ASC",
     )?;
@@ -24,6 +25,7 @@ pub fn get_subspace_by_id(
     db: &Connection,
     id: i32,
 ) -> Result<(i32, String, Option<i32>, i32), Box<dyn std::error::Error>> {
+    //Select a subspace based on id
     let mut stmt =
         db.prepare("SELECT id, name, parent_id, club_id FROM subspaces WHERE id = ?1")?;
     let subspace = stmt.query_row([id], |row| {
@@ -36,24 +38,13 @@ pub fn get_subspace_by_id(
     })?;
     Ok(subspace)
 }
-pub fn add_subspace(
-    db: &Connection,
-    name: &str,
-    parent_id: Option<i32>,
-    club_id: i32,
-) -> Result<i32, Box<dyn std::error::Error>> {
-    db.execute(
-        "INSERT INTO subspaces (name, parent_id, club_id) VALUES (?1, ?2, ?3)",
-        rusqlite::params![name, parent_id, club_id],
-    )?;
-    Ok(db.last_insert_rowid() as i32)
-}
 pub fn make_new_subspace(
     db: &Connection,
     name: &str,
     parent_id: Option<i32>,
     club_id: i32,
 ) -> Result<i32, Box<dyn std::error::Error>> {
+    //Insert a subspace into the subspaces table
     db.execute(
         "INSERT INTO subspaces (name, parent_id, club_id) VALUES (?1, ?2, ?3)",
         rusqlite::params![name, parent_id, club_id],

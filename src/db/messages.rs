@@ -6,6 +6,7 @@ pub fn add_message(
     subspace_id: i32,
     content: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    //Insert message, user_id, and where it was posted into the messages table
     db.execute(
         "INSERT INTO messages (user_id, subspace_id, content) VALUES (?1, ?2, ?3)",
         rusqlite::params![user_id, subspace_id, content],
@@ -16,6 +17,7 @@ pub fn read_messages_by_subspace_id(
     db: &Connection,
     subspace_id: i32,
 ) -> Result<Vec<(i32, String, i32, String)>, Box<dyn std::error::Error>> {
+    //Seect all messages from the messages table in a subspace
     let mut stmt = db.prepare(
         "SELECT id, content, user_id, timestamp FROM messages WHERE subspace_id = ?1 ORDER BY id ASC",
     )?;

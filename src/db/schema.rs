@@ -1,5 +1,5 @@
 use rusqlite::Connection;
-use crate::db::subspaces::add_subspace;
+use crate::db::subspaces::make_new_subspace;
 use crate::db::messages::add_message;
 use crate::db::club::add_club;
 
@@ -90,7 +90,7 @@ pub fn seed_if_empty(db: &Connection) -> Result<(), Box<dyn std::error::Error>> 
     if club_count == 0 {
         add_club(db, "Testing", "The image")?;
         let club_id = db.last_insert_rowid() as i32;
-        let subspace_id = add_subspace(db, "Main", None, club_id)?;
+        let subspace_id = make_new_subspace(db, "Main", None, club_id)?;
         let user_exists: bool =
             db.query_row("SELECT EXISTS(SELECT 1 FROM users WHERE id = 1)", [], |row| {
                 row.get(0)
