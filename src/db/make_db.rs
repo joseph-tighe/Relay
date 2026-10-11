@@ -1,4 +1,5 @@
 use rusqlite::{Connection};
+use crate::db::schema::ensure_schema;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db = Connection::open("example.db")?;
