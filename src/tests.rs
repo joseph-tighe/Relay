@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 
-use crate::auth::{check_password, hash_and_salt_password};
+use crate::auth::{check_password, hash_password, verify_password};
 use crate::db::club::make_new_club;
 use crate::db::messages::{add_message, read_messages_by_subspace_id};
 use crate::db::schema::ensure_schema;
@@ -76,15 +76,17 @@ fn migrates_legacy_tables() -> Result<(), Box<dyn std::error::Error>> {
 fn salted_password_round_trip() -> Result<(), Box<dyn std::error::Error>> {
     let mut db = Connection::open_in_memory()?;
     ensure_schema(&db)?;
-    // signup stores hash_and_salt_password(client_hash, user_id)
+    // signup stores hash_password(plaintext) with a fresh random salt
     add_user(&mut db, "T", "t@e.c", "12345")?;
-    // login + authed endpoints must salt the presented value the same way
-    let salted = hash_and_salt_password("12345", "1");
-    assert!(check_password(1, &salted, &db).is_ok());
-    assert!(check_password(1, "12345", &db).is_err());
+    // login + authed endpoints verify the plaintext against the stored PHC
+    assert!(check_password(1, "12345", &db).is_ok());
     assert!(check_password(1, "wrong", &db).is_err());
-    // salting is deterministic within a build
-    assert_eq!(salted, hash_and_salt_password("12345", "1"));
-    assert_ne!(salted, hash_and_salt_password("12345", "2"));
+    // random salt: same password hashes to different PHC strings, both verify
+    let h1 = hash_password("12345").map_err(|e| format!("hash: {e}"))?;
+    let h2 = hash_password("12345").map_err(|e| format!("hash: {e}"))?;
+    assert_ne!(h1, h2);
+    assert!(verify_password("12345", &h1));
+    assert!(verify_password("12345", &h2));
+    assert!(!verify_password("wrong", &h1));
     Ok(())
 }

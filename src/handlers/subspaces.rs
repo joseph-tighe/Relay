@@ -7,9 +7,10 @@ use rusqlite::Connection;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use rusqlite::OptionalExtension; // for :64
-use crate::auth::{hash_and_salt_password, check_authenticity, check_password};
+use crate::auth::{check_password};
 use crate::db::subspaces::{get_subspaces_by_club_id, get_subspace_by_id, make_new_subspace};
 use crate::models::{NewSubspace, Auth};
+use crate::auth::{check_authenticity};
 
 fn parent_id_json(parent_id: Option<i32>) -> String {
     match parent_id {
@@ -24,7 +25,7 @@ pub async fn get_subspaces_json_by_club_id(
     Json(auth): Json<Auth>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let db = db.lock().await;
-    check_password(auth.user_id, &hash_and_salt_password(&auth.passwordhash, &auth.user_id.to_string()), &db)
+    check_password(auth.user_id, &auth.passwordhash.to_string(), &db)
         .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
     let subspaces = get_subspaces_by_club_id(&db, id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
@@ -46,7 +47,7 @@ pub async fn get_subspace_json_by_id(
     Json(auth): Json<Auth>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let db = db.lock().await;
-    check_password(auth.user_id, &hash_and_salt_password(&auth.passwordhash, &auth.user_id.to_string()), &db)
+    check_password(auth.user_id, &auth.passwordhash.to_string(), &db)
         .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
     let subspace = get_subspace_by_id(&db, id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
@@ -64,7 +65,7 @@ pub async fn api_make_subspace(
     Json(new_subspace): Json<NewSubspace>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let db = db.lock().await;
-    check_password(new_subspace.owner_id, &hash_and_salt_password(&new_subspace.owner_password, &new_subspace.owner_id.to_string()), &db)
+    check_password(new_subspace.owner_id, &new_subspace.owner_password.to_string(), &db)
         .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
     let owner: Option<i32> = db
         .query_row(

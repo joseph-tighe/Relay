@@ -1,6 +1,6 @@
 use rusqlite::Connection;
 use rusqlite::OptionalExtension;
-use crate::auth::hash_and_salt_password;
+use crate::auth::hash_password;
 
 pub fn add_user(
     db: &mut Connection,
@@ -16,7 +16,7 @@ pub fn add_user(
     let user_id = transaction.last_insert_rowid();
     transaction.execute(
         "INSERT INTO auth (user_id, passwordhash) VALUES (?1, ?2)",
-        rusqlite::params![user_id, hash_and_salt_password(password, &user_id.to_string())],
+        rusqlite::params![user_id, hash_password(password).map_err(|e| e.to_string())?]
     )?;
     transaction.commit()?;
     Ok(())

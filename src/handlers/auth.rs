@@ -6,10 +6,10 @@ use axum::{
 use rusqlite::Connection;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::db::user::{email_exists, get_user_auth_by_email, add_user};
-use crate::auth::{check_authenticity, hash_and_salt_password};
+use crate::{auth::check_password, db::user::{add_user, email_exists, get_user_auth_by_email}};
 use crate::db::club::add_user_to_club;
 use crate::models::{UserPassword, Login};
+use crate::auth::{check_authenticity};
 
 pub async fn sign_up(
     State(db): State<Arc<Mutex<Connection>>>,
@@ -47,13 +47,13 @@ pub async fn login(
     }
     let stored_user = get_user_auth_by_email(&db, &user.email)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let Some((user_id, user_name, user_email, password_hash)) = stored_user else {
+    let Some((user_id, user_name, user_email, _)) = stored_user else {
         return Err((
             StatusCode::UNAUTHORIZED,
             "Invalid email or password".to_string(),
         ));
     };
-    if hash_and_salt_password(&user.password, &user_id.to_string()) != password_hash {
+    if check_password(user_id, &user.password.to_string(), &db).is_err() {
         return Err((StatusCode::BAD_REQUEST, "Invalid password".to_string()));
     }
     let json =

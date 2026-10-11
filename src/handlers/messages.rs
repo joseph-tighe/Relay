@@ -6,9 +6,10 @@ use axum::{
 use rusqlite::Connection;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::auth::{hash_and_salt_password, check_authenticity, check_password};
+use crate::auth::{check_password};
 use crate::db::messages::{add_message, read_messages_by_subspace_id};
 use crate::models::{NewMessage, Auth};
+use crate::auth::{check_authenticity};
 
 pub async fn get_messages_by_subspace_id(
     Path(id): Path<i32>,
@@ -16,7 +17,7 @@ pub async fn get_messages_by_subspace_id(
     Json(auth): Json<Auth>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let db = db.lock().await;
-    check_password(auth.user_id, &hash_and_salt_password(&auth.passwordhash, &auth.user_id.to_string()), &db)
+    check_password(auth.user_id, &auth.passwordhash.to_string(), &db)
         .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
     let messages = read_messages_by_subspace_id(&db, id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
@@ -37,7 +38,7 @@ pub async fn create_message(
     Json(message): Json<NewMessage>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let db = db.lock().await;
-    check_password(message.user_id, &hash_and_salt_password(&message.passwordhash, &message.user_id.to_string()), &db)
+    check_password(message.user_id, &message.passwordhash.to_string(), &db)
         .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
     check_authenticity(&message.text).then(|| ()).ok_or((
         StatusCode::BAD_REQUEST,

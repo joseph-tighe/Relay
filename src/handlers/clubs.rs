@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use rusqlite::OptionalExtension; // for .optional() at :59, :75
 use crate::models::{NewClub, NewMember, Auth};
-use crate::auth::{check_password, hash_and_salt_password};
+use crate::auth::{check_password};
 use crate::db::user::{get_user_by_id};
 use crate::db::club::{make_new_club, add_user_to_club, get_club_by_id};
 use crate::db::subspaces::make_new_subspace;
@@ -29,7 +29,7 @@ pub async fn api_make_club(
     Json(new_club): Json<NewClub>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let db = db.lock().await;
-    check_password(new_club.owner_id, &hash_and_salt_password(&new_club.owner_password, &new_club.owner_id.to_string()), &db)
+    check_password(new_club.owner_id, &new_club.owner_password.to_string(), &db)
         .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
     let owner_id = new_club.owner_id;
     get_user_by_id(&db, owner_id)
@@ -56,7 +56,7 @@ pub async fn api_add_club_member(
     Json(member): Json<NewMember>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let db = db.lock().await;
-    check_password(member.user_id, &hash_and_salt_password(&member.passwordhash, &member.user_id.to_string()), &db)
+    check_password(member.user_id, &member.passwordhash.to_string(), &db)
         .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
     let owner: Option<Option<i32>> = db
         .query_row(
@@ -95,7 +95,7 @@ pub async fn get_clubs_owned_by_user_id(
     Json(auth): Json<Auth>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let db = db.lock().await;
-    check_password(auth.user_id, &hash_and_salt_password(&auth.passwordhash, &auth.user_id.to_string()), &db)
+    check_password(auth.user_id, &auth.passwordhash.to_string(), &db)
         .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
     let mut stmt = db
         .prepare("SELECT id, name, image FROM clubs WHERE owner_id = ?1 ORDER BY id ASC")

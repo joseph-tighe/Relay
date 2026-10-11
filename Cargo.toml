@@ -10,3 +10,5 @@ tower-http = { version = "0.6", features = ["fs"] }
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+argon2 = "0.5"
+rand_core = { version = "0.6", features = ["getrandom"] }
