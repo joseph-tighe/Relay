@@ -13,12 +13,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     db.execute(
         "CREATE TABLE IF NOT EXISTS clubs (
+            owner_id INTEGER,
             id INTEGER PRIMARY KEY,
             name TEXT,
-            image TEXT
+            image TEXT,
+            FOREIGN KEY (owner_id) REFERENCES users(id)
         )",
         [],
     )?;
+    db.execute("CREATE TABLE IF NOT EXISTS subspaces (
+        id INTEGER PRIMARY KEY,
+        name TEXT,
+        parent_id INTEGER,
+        club_id INTEGER,
+        FOREIGN KEY (parent_id) REFERENCES subspaces(id),
+        FOREIGN KEY (club_id) REFERENCES clubs(id)
+    )", [])?;
     db.execute(
         "CREATE TABLE IF NOT EXISTS club_memberships (
             user_id INTEGER,
@@ -34,12 +44,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY,
             user_id INTEGER,
-            club_id INTEGER,
+            subspace_id INTEGER,
             content TEXT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
 
             FOREIGN KEY (user_id) REFERENCES users(id),
-            FOREIGN KEY (club_id) REFERENCES clubs(id)
+            FOREIGN KEY (subspace_id) REFERENCES subspaces(id)
         )",
         [],
     )?;

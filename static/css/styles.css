@@ -25,8 +25,9 @@ body { font-family: var(--sans); background: var(--bg); color: var(--ink); heigh
 .side-search kbd { font-family: var(--mono); font-size: 10.5px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 5px; padding: 1px 6px; }
 .rooms { flex: 1; overflow-y: auto; padding: 6px 8px 12px; display: flex; flex-direction: column; gap: 2px; }
 .club { border-radius: 6px; }
-/* JS-rendered clubs: div.club > div.club-name (+ img, unstyled for now) */
-div.club { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; cursor: pointer; transition: background-color 0.12s ease; }
+/* JS-rendered clubs: div.club > div.club-name + div.club-body (> div.leaf).
+   Block layout: club name on its own line, subspaces stacked below it. */
+div.club { display: block; padding: 2px 8px 6px; border-radius: 6px; cursor: pointer; transition: background-color 0.12s ease; }
 div.club:hover { background: rgba(255,255,255,.06); }
 .club-name { font-size: 13px; font-weight: 700; color: var(--side-text); transition: color 0.12s ease; }
 div.club:hover .club-name { color: #fff; }
@@ -45,7 +46,10 @@ summary:hover::before { border-color: #fff; }
 .club-body { margin: 2px 0 4px 15px; padding-left: 9px; border-left: 1px solid rgba(255,255,255,.1); display: flex; flex-direction: column; }
 .leaf { display: flex; align-items: center; font-size: 12.5px; padding: 4px 8px; border-radius: 5px; color: var(--side-text); cursor: pointer; }
 .space > .leaf { margin-left: 12px; }
+
 .leaf.deep-leaf { margin-left: 30px; font-size: 12px; }
+.leaf.current { background: rgba(255,255,255,.09); color: #fff; }
+.club-body.collapsed { display: none; }
 .club > summary, .space > summary, .leaf { transition: background-color 0.12s ease, color 0.12s ease; }
 .club > summary:hover, .space > summary:hover, .leaf:hover { background: rgba(255,255,255,.06); color: #fff; }
 .space { border-radius: 5px; }

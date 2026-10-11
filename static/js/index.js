@@ -1,5 +1,5 @@
 let userId = parseInt(sessionStorage.getItem("userId"));
-if (!userId) {
+if (!userId || !sessionStorage.getItem("passHash")) {
     window.location.href = "/login";
 }
 function getUserById(id) {
@@ -20,6 +20,7 @@ function getUser(id) {
         return IdToUser[id];
     }
 }
+const IdToUser = {};
 function getClubById(id) {
     return fetch(`/api/club/${id}`)
         .then(res => res.json())
@@ -29,45 +30,127 @@ function changeMyName(name) {
     document.querySelector(".username").innerText = name;
     document.querySelector(".me").innerText = name[0];
 }
-function getMessagesByClubId(clubId) {
-    return fetch(`/api/club/${clubId}/messages`, {
+function authBody() {
+    return {
+        "passwordhash": sessionStorage.getItem("passHash"),
+        "user_id": userId
+    };
+}
+function getSubspacesByClubId(clubId) {
+    return fetch(`/api/club/${clubId}/subspaces`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
         },
-        body: JSON.stringify({
-            "passwordhash": sessionStorage.getItem("passHash"),
-            "user_id": userId
-        })
+        body: JSON.stringify(authBody())
     })
         .then(res => res.json())
-        .then(messages => messages);
+        .then(data => data);
 }
-function addClub(name, image) {
-    let club = document.createElement("div");
-    club.classList.add("club");
+function getMessagesBySubspaceId(subspaceId) {
+    return fetch(`/api/subspace/${subspaceId}/messages`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(authBody())
+    })
+        .then(res => res.json())
+        .then(data => data);
+}
+let activeSubspaceId = null;
+const seenMessageIds = new Set();
+const subspaceLeaves = {};
+function subspaceTree(subspaces) {
+    const byId = {};
+    const roots = [];
+    for (let subspace of subspaces) {
+        byId[subspace.id] = { ...subspace, children: [] };
+    }
+    for (let id in byId) {
+        const node = byId[id];
+        if (node.parent_id && byId[node.parent_id]) {
+            byId[node.parent_id].children.push(node);
+        } else {
+            roots.push(node);
+        }
+    }
+    return roots;
+}
+function renderSubspace(bodyEl, subspace, depth) {
+    let leaf = document.createElement("div");
+    leaf.classList.add("leaf");
+    if (depth > 0) {
+        leaf.classList.add("deep-leaf");
+    }
+    leaf.innerText = subspace.name;
+    leaf.addEventListener("click", () => selectSubspace(subspace.id));
+    bodyEl.appendChild(leaf);
+    subspaceLeaves[subspace.id] = leaf;
+    for (let child of subspace.children) {
+        renderSubspace(bodyEl, child, depth + 1);
+    }
+}
+function addClub(club, subspaces) {
+    if (typeof club === "string") {
+        club = { name: club };
+    }
+    subspaces = subspaces || [];
+    const rooms = document.querySelector(".rooms");
+    let clubEl = document.createElement("div");
+    clubEl.classList.add("club");
     let clubName = document.createElement("div");
     clubName.classList.add("club-name");
-    clubName.innerText = name;
-    club.appendChild(clubName);/*
-    let clubImage = document.createElement("img");
-    clubImage.classList.add("club-image");
-    clubImage.src = image;
-    club.appendChild(clubImage);*/
-    document.querySelector(".rooms").appendChild(club);
+    clubName.innerText = club.name;
+    clubEl.appendChild(clubName);
+    let bodyEl = document.createElement("div");
+    bodyEl.classList.add("club-body");
+    for (let root of subspaceTree(subspaces)) {
+        renderSubspace(bodyEl, root, 0);
+    }
+    clubEl.addEventListener("click", (e) => {
+        if (e.target.closest(".leaf")) return;
+        bodyEl.classList.toggle("collapsed");
+    });
+    clubEl.appendChild(bodyEl);
+    rooms.appendChild(clubEl);
+}
+function clearFeed() {
+    document.querySelector(".scroll").innerHTML = "";
+    seenMessageIds.clear();
+}
+async function loadMessages() {
+    if (!activeSubspaceId) return;
+    const data = await getMessagesBySubspaceId(activeSubspaceId);
+    for (let message of data.messages) {
+        if (seenMessageIds.has(message.id)) continue;
+        seenMessageIds.add(message.id);
+        await renderMessage(message);
+    }
+}
+async function selectSubspace(subspaceId) {
+    activeSubspaceId = subspaceId;
+    document.querySelectorAll(".leaf.current").forEach(el => el.classList.remove("current"));
+    if (subspaceLeaves[subspaceId]) {
+        subspaceLeaves[subspaceId].classList.add("current");
+    }
+    clearFeed();
+    await loadMessages();
 }
 let userData = await getUserById(userId);
 changeMyName(userData.name);
 let clubsIds = await getClubsByUserId(userId).then(clubsIds => clubsIds.clubs);
-let clubs = [];
+let firstSubspaceId = null;
 for (let clubId of clubsIds) {
-    clubs.push(await getClubById(clubId));
+    const club = await getClubById(clubId);
+    const data = await getSubspacesByClubId(clubId);
+    addClub(club, data.subspaces);
+    if (firstSubspaceId === null && data.subspaces.length > 0) {
+        firstSubspaceId = data.subspaces[0].id;
+    }
 }
-let messages = [];
-for (let club of clubs) {
-    console.log(club.name);
-    addClub(club.name, club.image);
-    messages.push(await getMessagesByClubId(clubsIds[clubs.indexOf(club)]).then(messages => messages.messages));
+if (firstSubspaceId !== null) {
+    await selectSubspace(firstSubspaceId);
 }
 async function renderMessage(message) {
     let user = await getUser(message.userId);
@@ -95,37 +178,64 @@ async function renderMessage(message) {
     body.appendChild(p);
     document.querySelector(".scroll").appendChild(messageDiv);
 }
-let IdToUser = {userId: userData};
-if (messages.length > 0) {
-    for (let message of messages[0]) {
-        console.log(message.text, message.userId, message.timestamp);
-        await renderMessage(message);
-    }
-}
 document.getElementById("message-input").addEventListener("keydown", e => {
     if (e.key === "Enter") {
         e.preventDefault();
+        if (!activeSubspaceId) return;
         let messageInput = document.getElementById("message-input");
         let message = messageInput.value;
-        console.log(JSON.stringify({
-                "text": message,
-                "user_id": userId
-            }));
-        fetch(`/api/club/${clubsIds[0]}/messages/new`, {
+        if (!message.trim()) {
+            messageInput.focus();
+            return;
+        }
+        fetch(`/api/subspace/${activeSubspaceId}/messages/new`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                "password": sessionStorage.getItem("passHash"),
+                "passwordhash": sessionStorage.getItem("passHash"),
                 "text": message,
                 "user_id": userId
             })
         }).then(res => res.json())
             .then(async message => {
-                await renderMessage(message);
+                if (!seenMessageIds.has(message.id)) {
+                    seenMessageIds.add(message.id);
+                    await renderMessage(message);
+                }
                 messageInput.value = "";
             });
         messageInput.focus();
     }
 });
+setInterval(async () => {
+    await loadMessages();
+}, 1000);
+function createClub() {
+    let name = prompt("Club name");
+    let image = prompt("Club image URL");
+    if (!name) {
+        return;
+    }
+    if (!image) {
+        image = "null";
+    }
+    fetch(`/api/club/new`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            "name": name,
+            "image": image,
+            "owner_id": userId,
+            "owner_password": sessionStorage.getItem("passHash")
+        })
+    }).then(res => res.json())
+        .then(async data => {
+            const club = await getClubById(data.club_id);
+            const subspaces = await getSubspacesByClubId(data.club_id);
+            addClub(club, subspaces.subspaces);
+        });
+}

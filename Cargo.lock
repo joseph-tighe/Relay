@@ -344,6 +344,7 @@ dependencies = [
  "axum",
  "rusqlite",
  "serde",
+ "serde_json",
  "tokio",
  "tower-http",
 ]
