@@ -14,6 +14,51 @@ use tokio::sync::Mutex;
 use tower_http::services::ServeDir;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+
+#[derive(serde::Deserialize)]
+struct NewSubspace {
+    name: String,
+    parent_id: Option<i32>,
+    club_id: i32,
+    owner_password: String,
+    owner_id: i32
+}
+#[derive(serde::Deserialize)]
+struct Auth {
+    user_id: i32,
+    passwordhash: String,
+}
+#[derive(serde::Deserialize)]
+struct NewMessage {
+    passwordhash: String,
+    text: String,
+    user_id: i32,
+}
+#[derive(Debug, serde::Deserialize)]
+struct UserPassword {
+    name: String,
+    email: String,
+    password: String,
+}
+#[derive(Debug, serde::Deserialize)]
+struct Login {
+    email: String,
+    password: String,
+}
+#[derive(serde::Deserialize)]
+struct NewClub {
+    name: String,
+    image: String,
+    owner_id: i32,
+    owner_password: String
+}
+#[derive(serde::Deserialize)]
+struct NewMember {
+    email: String,
+    user_id: i32,
+    passwordhash: String,
+}
+
 fn hash_and_salt_password(password: &str, salt: &str) -> String {
     let mut password = password.to_owned();
     password.push_str(salt);
@@ -123,31 +168,6 @@ fn read_messages_by_subspace_id(
     }
     Ok(messages_vec)
 }
-#[derive(serde::Deserialize)]
-struct Auth {
-    user_id: i32,
-    passwordhash: String,
-}
-async fn get_messages_by_subspace_id(
-    Path(id): Path<i32>,
-    State(db): State<Arc<Mutex<Connection>>>,
-    Json(auth): Json<Auth>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let db = db.lock().await;
-    check_password(auth.user_id, &hash_and_salt_password(&auth.passwordhash, &auth.user_id.to_string()), &db)
-        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
-    let messages = read_messages_by_subspace_id(&db, id)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let mut messages_json = Vec::new();
-    for message in messages {
-        messages_json.push(format!(
-            "{{\"id\": {}, \"text\": \"{}\", \"userId\": {}, \"timestamp\": \"{}\"}}",
-            message.0, message.1, message.2, message.3
-        ));
-    }
-    let json = format!("{{\"messages\": [{}]}}", messages_json.join(", "));
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
-}
 fn check_sql_injection(input: &str) -> bool {
     let forbidden_keywords = ["'", ";", "--"];
     let input_upper = input.to_uppercase();
@@ -186,25 +206,11 @@ fn check_password(
     }
     Ok(())
 }
-async fn get_user_json_by_id(
-    Path(id): Path<i32>,
-    State(db): State<Arc<Mutex<Connection>>>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let db = db.lock().await;
-    let (user_name, user_email) = get_user_by_id(&db, id)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let json = format!("{{\"name\": \"{user_name}\", \"email\": \"{user_email}\"}}");
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
-}
-async fn get_club_json_by_id(
-    Path(id): Path<i32>,
-    State(db): State<Arc<Mutex<Connection>>>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let db = db.lock().await;
-    let (club_name, club_image) = get_club_by_id(&db, id)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let json = format!("{{\"name\": \"{club_name}\", \"image\": \"{club_image}\"}}");
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+fn parent_id_json(parent_id: Option<i32>) -> String {
+    match parent_id {
+        Some(id) => id.to_string(),
+        None => "null".to_string(),
+    }
 }
 fn get_subspaces_by_club_id(
     db: &Connection,
@@ -242,99 +248,6 @@ fn get_subspace_by_id(
     })?;
     Ok(subspace)
 }
-fn parent_id_json(parent_id: Option<i32>) -> String {
-    match parent_id {
-        Some(id) => id.to_string(),
-        None => "null".to_string(),
-    }
-}
-async fn get_subspaces_json_by_club_id(
-    Path(id): Path<i32>,
-    State(db): State<Arc<Mutex<Connection>>>,
-    Json(auth): Json<Auth>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let db = db.lock().await;
-    check_password(auth.user_id, &hash_and_salt_password(&auth.passwordhash, &auth.user_id.to_string()), &db)
-        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
-    let subspaces = get_subspaces_by_club_id(&db, id)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let mut subspaces_json = Vec::new();
-    for subspace in subspaces {
-        subspaces_json.push(format!(
-            "{{\"id\": {}, \"name\": \"{}\", \"parent_id\": {}}}",
-            subspace.0,
-            subspace.1,
-            parent_id_json(subspace.2)
-        ));
-    }
-    let json = format!("{{\"subspaces\": [{}]}}", subspaces_json.join(", "));
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
-}
-async fn get_subspace_json_by_id(
-    Path(id): Path<i32>,
-    State(db): State<Arc<Mutex<Connection>>>,
-    Json(auth): Json<Auth>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let db = db.lock().await;
-    check_password(auth.user_id, &hash_and_salt_password(&auth.passwordhash, &auth.user_id.to_string()), &db)
-        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
-    let subspace = get_subspace_by_id(&db, id)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let json = format!(
-        "{{\"id\": {}, \"name\": \"{}\", \"parent_id\": {}, \"club_id\": {}}}",
-        subspace.0,
-        subspace.1,
-        parent_id_json(subspace.2),
-        subspace.3
-    );
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
-}
-async fn get_clubs_in_by_user_id(
-    Path(id): Path<i32>,
-    State(db): State<Arc<Mutex<Connection>>>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let db = db.lock().await;
-    let clubs_ids = get_clubs_by_user_id(&db, id)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let clubs = clubs_ids
-        .iter()
-        .map(i32::to_string)
-        .collect::<Vec<_>>()
-        .join(", ");
-    let json = format!("{{\"clubs\": [{clubs}]}}");
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
-}
-#[derive(serde::Deserialize)]
-struct NewMessage {
-    passwordhash: String,
-    text: String,
-    user_id: i32,
-}
-async fn create_message(
-    Path(id): Path<i32>,
-    State(db): State<Arc<Mutex<Connection>>>,
-    Json(message): Json<NewMessage>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let db = db.lock().await;
-    check_password(message.user_id, &hash_and_salt_password(&message.passwordhash, &message.user_id.to_string()), &db)
-        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
-    check_authenticity(&message.text).then(|| ()).ok_or((
-        StatusCode::BAD_REQUEST,
-        "Invalid message content".to_string(),
-    ))?;
-    add_message(&db, message.user_id, id, &message.text)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let message = read_messages_by_subspace_id(&db, id)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let json = format!(
-        "{{\"id\": {}, \"text\": \"{}\", \"userId\": {}, \"timestamp\": \"{}\"}}",
-        message[message.len() - 1].0,
-        message[message.len() - 1].1,
-        message[message.len() - 1].2,
-        message[message.len() - 1].3
-    );
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
-}
 fn email_exists(db: &Connection, email: &str) -> Result<bool, Box<dyn std::error::Error>> {
     let exists = db.query_row(
         "SELECT EXISTS(SELECT 1 FROM users WHERE email = ?1)",
@@ -342,17 +255,6 @@ fn email_exists(db: &Connection, email: &str) -> Result<bool, Box<dyn std::error
         |row| row.get(0),
     )?;
     Ok(exists)
-}
-#[derive(Debug, serde::Deserialize)]
-struct UserPassword {
-    name: String,
-    email: String,
-    password: String,
-}
-#[derive(Debug, serde::Deserialize)]
-struct Login {
-    email: String,
-    password: String,
 }
 fn get_user_auth_by_email(
     db: &Connection,
@@ -375,55 +277,6 @@ fn get_user_auth_by_email(
         .optional()?;
     Ok(user)
 }
-async fn sign_up(
-    State(db): State<Arc<Mutex<Connection>>>,
-    Json(user): Json<UserPassword>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    check_authenticity(&user.name)
-        .then(|| ())
-        .ok_or((StatusCode::BAD_REQUEST, "Invalid user name".to_string()))?;
-
-    let mut db = db.lock().await;
-    if email_exists(&db, &user.email)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
-    {
-        return Err((StatusCode::BAD_REQUEST, "Email already exists".to_string()));
-    }
-    add_user(&mut db, &user.name, &user.email, &user.password)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let user_id = db.last_insert_rowid();
-    let _ = add_user_to_club(&mut db, user_id.to_string().parse::<i32>().unwrap(), 1);
-    let json = format!(
-        "{{\"name\": \"{}\", \"email\": \"{}\", \"id\": {}}}",
-        user.name, user.email, user_id
-    );
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
-}
-async fn login(
-    State(db): State<Arc<Mutex<Connection>>>,
-    Json(user): Json<Login>,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let db = db.lock().await;
-    if !email_exists(&db, &user.email)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
-    {
-        return Err((StatusCode::BAD_REQUEST, "Email doesn't exists".to_string()));
-    }
-    let stored_user = get_user_auth_by_email(&db, &user.email)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let Some((user_id, user_name, user_email, password_hash)) = stored_user else {
-        return Err((
-            StatusCode::UNAUTHORIZED,
-            "Invalid email or password".to_string(),
-        ));
-    };
-    if hash_and_salt_password(&user.password, &user_id.to_string()) != password_hash {
-        return Err((StatusCode::BAD_REQUEST, "Invalid password".to_string()));
-    }
-    let json =
-        format!("{{\"id\": {user_id}, \"name\": \"{user_name}\", \"email\": \"{user_email}\"}}");
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
-}
 fn add_subspace(
     db: &Connection,
     name: &str,
@@ -436,6 +289,31 @@ fn add_subspace(
     )?;
     Ok(db.last_insert_rowid() as i32)
 }
+fn make_new_club(
+    db: &Connection,
+    name: &str,
+    image: &str,
+    owner_id: i32,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    db.execute(
+        "INSERT INTO clubs (name, image, owner_id) VALUES (?1, ?2, ?3)",
+        rusqlite::params![name, image, owner_id],
+    )?;
+    Ok(db.last_insert_rowid() as i32)
+}
+fn make_new_subspace(
+    db: &Connection,
+    name: &str,
+    parent_id: Option<i32>,
+    club_id: i32,
+) -> Result<i32, Box<dyn std::error::Error>> {
+    db.execute(
+        "INSERT INTO subspaces (name, parent_id, club_id) VALUES (?1, ?2, ?3)",
+        rusqlite::params![name, parent_id, club_id],
+    )?;
+    Ok(db.last_insert_rowid() as i32)
+}
+/*
 fn ensure_schema(db: &Connection) -> Result<(), Box<dyn std::error::Error>> {
     db.execute(
         "CREATE TABLE IF NOT EXISTS users (
@@ -533,36 +411,178 @@ fn seed_if_empty(db: &Connection) -> Result<(), Box<dyn std::error::Error>> {
     }
     Ok(())
 }
-fn make_new_club(
-    db: &Connection,
-    name: &str,
-    image: &str,
-    owner_id: i32,
-) -> Result<i32, Box<dyn std::error::Error>> {
-    db.execute(
-        "INSERT INTO clubs (name, image, owner_id) VALUES (?1, ?2, ?3)",
-        rusqlite::params![name, image, owner_id],
-    )?;
-    Ok(db.last_insert_rowid() as i32)
+*/
+//GET REQUESTS
+async fn get_user_json_by_id(
+    Path(id): Path<i32>,
+    State(db): State<Arc<Mutex<Connection>>>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let db = db.lock().await;
+    let (user_name, user_email) = get_user_by_id(&db, id)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let json = format!("{{\"name\": \"{user_name}\", \"email\": \"{user_email}\"}}");
+    Ok(([(header::CONTENT_TYPE, "application/json")], json))
 }
-fn make_new_subspace(
-    db: &Connection,
-    name: &str,
-    parent_id: Option<i32>,
-    club_id: i32,
-) -> Result<i32, Box<dyn std::error::Error>> {
-    db.execute(
-        "INSERT INTO subspaces (name, parent_id, club_id) VALUES (?1, ?2, ?3)",
-        rusqlite::params![name, parent_id, club_id],
-    )?;
-    Ok(db.last_insert_rowid() as i32)
+async fn get_club_json_by_id(
+    Path(id): Path<i32>,
+    State(db): State<Arc<Mutex<Connection>>>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let db = db.lock().await;
+    let (club_name, club_image) = get_club_by_id(&db, id)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let json = format!("{{\"name\": \"{club_name}\", \"image\": \"{club_image}\"}}");
+    Ok(([(header::CONTENT_TYPE, "application/json")], json))
 }
-#[derive(serde::Deserialize)]
-struct NewClub {
-    name: String,
-    image: String,
-    owner_id: i32,
-    owner_password: String
+async fn get_clubs_in_by_user_id(
+    Path(id): Path<i32>,
+    State(db): State<Arc<Mutex<Connection>>>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let db = db.lock().await;
+    let clubs_ids = get_clubs_by_user_id(&db, id)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let clubs = clubs_ids
+        .iter()
+        .map(i32::to_string)
+        .collect::<Vec<_>>()
+        .join(", ");
+    let json = format!("{{\"clubs\": [{clubs}]}}");
+    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+}
+//POST REQUESTS
+async fn get_messages_by_subspace_id(
+    Path(id): Path<i32>,
+    State(db): State<Arc<Mutex<Connection>>>,
+    Json(auth): Json<Auth>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let db = db.lock().await;
+    check_password(auth.user_id, &hash_and_salt_password(&auth.passwordhash, &auth.user_id.to_string()), &db)
+        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
+    let messages = read_messages_by_subspace_id(&db, id)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let mut messages_json = Vec::new();
+    for message in messages {
+        messages_json.push(format!(
+            "{{\"id\": {}, \"text\": \"{}\", \"userId\": {}, \"timestamp\": \"{}\"}}",
+            message.0, message.1, message.2, message.3
+        ));
+    }
+    let json = format!("{{\"messages\": [{}]}}", messages_json.join(", "));
+    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+}
+async fn get_subspaces_json_by_club_id(
+    Path(id): Path<i32>,
+    State(db): State<Arc<Mutex<Connection>>>,
+    Json(auth): Json<Auth>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let db = db.lock().await;
+    check_password(auth.user_id, &hash_and_salt_password(&auth.passwordhash, &auth.user_id.to_string()), &db)
+        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
+    let subspaces = get_subspaces_by_club_id(&db, id)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let mut subspaces_json = Vec::new();
+    for subspace in subspaces {
+        subspaces_json.push(format!(
+            "{{\"id\": {}, \"name\": \"{}\", \"parent_id\": {}}}",
+            subspace.0,
+            subspace.1,
+            parent_id_json(subspace.2)
+        ));
+    }
+    let json = format!("{{\"subspaces\": [{}]}}", subspaces_json.join(", "));
+    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+}
+async fn get_subspace_json_by_id(
+    Path(id): Path<i32>,
+    State(db): State<Arc<Mutex<Connection>>>,
+    Json(auth): Json<Auth>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let db = db.lock().await;
+    check_password(auth.user_id, &hash_and_salt_password(&auth.passwordhash, &auth.user_id.to_string()), &db)
+        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
+    let subspace = get_subspace_by_id(&db, id)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let json = format!(
+        "{{\"id\": {}, \"name\": \"{}\", \"parent_id\": {}, \"club_id\": {}}}",
+        subspace.0,
+        subspace.1,
+        parent_id_json(subspace.2),
+        subspace.3
+    );
+    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+}
+async fn create_message(
+    Path(id): Path<i32>,
+    State(db): State<Arc<Mutex<Connection>>>,
+    Json(message): Json<NewMessage>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let db = db.lock().await;
+    check_password(message.user_id, &hash_and_salt_password(&message.passwordhash, &message.user_id.to_string()), &db)
+        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
+    check_authenticity(&message.text).then(|| ()).ok_or((
+        StatusCode::BAD_REQUEST,
+        "Invalid message content".to_string(),
+    ))?;
+    add_message(&db, message.user_id, id, &message.text)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let message = read_messages_by_subspace_id(&db, id)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let json = format!(
+        "{{\"id\": {}, \"text\": \"{}\", \"userId\": {}, \"timestamp\": \"{}\"}}",
+        message[message.len() - 1].0,
+        message[message.len() - 1].1,
+        message[message.len() - 1].2,
+        message[message.len() - 1].3
+    );
+    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+}
+async fn sign_up(
+    State(db): State<Arc<Mutex<Connection>>>,
+    Json(user): Json<UserPassword>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    check_authenticity(&user.name)
+        .then(|| ())
+        .ok_or((StatusCode::BAD_REQUEST, "Invalid user name".to_string()))?;
+
+    let mut db = db.lock().await;
+    if email_exists(&db, &user.email)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+    {
+        return Err((StatusCode::BAD_REQUEST, "Email already exists".to_string()));
+    }
+    add_user(&mut db, &user.name, &user.email, &user.password)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let user_id = db.last_insert_rowid();
+    let _ = add_user_to_club(&mut db, user_id.to_string().parse::<i32>().unwrap(), 1);
+    let json = format!(
+        "{{\"name\": \"{}\", \"email\": \"{}\", \"id\": {}}}",
+        user.name, user.email, user_id
+    );
+    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+}
+async fn login(
+    State(db): State<Arc<Mutex<Connection>>>,
+    Json(user): Json<Login>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let db = db.lock().await;
+    if !email_exists(&db, &user.email)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+    {
+        return Err((StatusCode::BAD_REQUEST, "Email doesn't exists".to_string()));
+    }
+    let stored_user = get_user_auth_by_email(&db, &user.email)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let Some((user_id, user_name, user_email, password_hash)) = stored_user else {
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            "Invalid email or password".to_string(),
+        ));
+    };
+    if hash_and_salt_password(&user.password, &user_id.to_string()) != password_hash {
+        return Err((StatusCode::BAD_REQUEST, "Invalid password".to_string()));
+    }
+    let json =
+        format!("{{\"id\": {user_id}, \"name\": \"{user_name}\", \"email\": \"{user_email}\"}}");
+    Ok(([(header::CONTENT_TYPE, "application/json")], json))
 }
 async fn api_make_club(
     State(db): State<Arc<Mutex<Connection>>>,
@@ -590,21 +610,71 @@ async fn api_make_club(
     println!("Created club {} with subspace {} for user {}", club_id, subspace_id, owner_id);
     Ok(Json(serde_json::json!({ "club_id": club_id, "subspace_id": subspace_id })))
 }
-#[derive(serde::Deserialize)]
-struct NewSubspace {
-    name: String,
-    parent_id: Option<i32>,
-    club_id: i32,
-    owner_password: String
+async fn api_add_club_member(
+    Path(id): Path<i32>,
+    State(db): State<Arc<Mutex<Connection>>>,
+    Json(member): Json<NewMember>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let db = db.lock().await;
+    check_password(member.user_id, &hash_and_salt_password(&member.passwordhash, &member.user_id.to_string()), &db)
+        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
+    let owner: Option<Option<i32>> = db
+        .query_row(
+            "SELECT owner_id FROM clubs WHERE id = ?1",
+            [id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let owner = owner.ok_or((StatusCode::NOT_FOUND, "No such club".to_string()))?;
+    match owner {
+        Some(owner_id) if owner_id != member.user_id => {
+            return Err((StatusCode::UNAUTHORIZED, "Not the owner of club".to_string()));
+        }
+        // Owner match, or unclaimed club (NULL owner from before ownership existed).
+        _ => {}
+    }
+    let new_id: Option<i32> = db
+        .query_row(
+            "SELECT id FROM users WHERE email = ?1",
+            [&member.email],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let new_id = new_id.ok_or((StatusCode::NOT_FOUND, "No user with that email".to_string()))?;
+    db.execute(
+        "INSERT OR IGNORE INTO club_memberships (user_id, club_id) VALUES (?1, ?2)",
+        rusqlite::params![new_id, id],
+    )
+    .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    Ok(Json(serde_json::json!({ "user_id": new_id })))
 }
 async fn api_make_subspace(
     State(db): State<Arc<Mutex<Connection>>>,
     Json(new_subspace): Json<NewSubspace>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     let db = db.lock().await;
-    check_authenticity(&new_subspace.owner_password)
+    check_password(new_subspace.owner_id, &hash_and_salt_password(&new_subspace.owner_password, &new_subspace.owner_id.to_string()), &db)
+        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
+    let owner: Option<i32> = db
+        .query_row(
+            "SELECT owner_id FROM clubs WHERE id = ?1",
+            [new_subspace.club_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    match owner {
+        Some(id) if id != new_subspace.owner_id => {
+            return Err((StatusCode::UNAUTHORIZED, "Not the owner of club".to_string()));
+        }
+        // Owner match, or unclaimed club (NULL owner from before ownership existed).
+        _ => {}
+    }
+    check_authenticity(&new_subspace.name)
         .then(|| ())
-        .ok_or((StatusCode::UNAUTHORIZED, "Invalid password".to_string()))?;
+        .ok_or((StatusCode::BAD_REQUEST, "Invalid subspace name".to_string()))?;
     let subspace_id = make_new_subspace(
         &db,
         &new_subspace.name,
@@ -614,6 +684,68 @@ async fn api_make_subspace(
     .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     Ok(Json(serde_json::json!({ "subspace_id": subspace_id })))
 }
+async fn get_clubs_owned_by_user_id(
+    State(db): State<Arc<Mutex<Connection>>>,
+    Json(auth): Json<Auth>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let db = db.lock().await;
+    check_password(auth.user_id, &hash_and_salt_password(&auth.passwordhash, &auth.user_id.to_string()), &db)
+        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
+    let mut stmt = db
+        .prepare("SELECT id, name, image FROM clubs WHERE owner_id = ?1 ORDER BY id ASC")
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let clubs = stmt
+        .query_map([auth.user_id], |row| {
+            Ok((
+                row.get::<_, i32>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let mut clubs_json = Vec::new();
+    for club in clubs {
+        let (club_id, club_name, club_image) = club
+            .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+        clubs_json.push(format!(
+            "{{\"id\": {}, \"name\": \"{}\", \"image\": \"{}\"}}",
+            club_id, club_name, club_image
+        ));
+    }
+    let json = format!("{{\"clubs\": [{}]}}", clubs_json.join(", "));
+    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+}
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let db = Connection::open("example.db")?;
+    ensure_schema(&db)?;
+    seed_if_empty(&db)?;
+    let db = Arc::new(Mutex::new(db));
+    let app = Router::new()
+        .route("/api/user/{id}", get(get_user_json_by_id))
+        .route("/api/clubs-in/{id}", get(get_clubs_in_by_user_id))
+        .route("/api/club/{id}", get(get_club_json_by_id))
+        .route("/api/clubs/mine", post(get_clubs_owned_by_user_id))
+        .route("/api/club/new", post(api_make_club))
+        .route("/api/subspace/new", post(api_make_subspace))
+        .route("/api/club/{id}/subspaces", post(get_subspaces_json_by_club_id))
+        .route("/api/club/{id}/members", post(api_add_club_member))
+        .route("/api/subspace/{id}", post(get_subspace_json_by_id))
+        .route("/api/subspace/{id}/messages", post(get_messages_by_subspace_id))
+        .route("/api/subspace/{id}/messages/new", post(create_message))
+        .route("/api/signup", post(sign_up))
+        .route("/api/login", post(login))
+        .with_state(db)
+        .fallback_service(ServeDir::new("static"));
+
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    let listener = TcpListener::bind(addr).await?;
+    println!("Listening on http://{addr}");
+    axum::serve(listener, app).await?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -643,6 +775,21 @@ mod tests {
         let subspaces = get_subspaces_by_club_id(&db, club_id)?;
         assert_eq!(subspaces.len(), 2);
         assert!(subspaces.iter().any(|s| s.0 == child && s.2 == Some(subspace_id)));
+        // owner adds a second user by email; duplicates are ignored
+        add_user(&mut db, "U", "u@e.c", "hash")?;
+        let new_id: i32 = db.query_row("SELECT id FROM users WHERE email = 'u@e.c'", [], |row| {
+            row.get(0)
+        })?;
+        db.execute(
+            "INSERT OR IGNORE INTO club_memberships (user_id, club_id) VALUES (?1, ?2)",
+            rusqlite::params![new_id, club_id],
+        )?;
+        db.execute(
+            "INSERT OR IGNORE INTO club_memberships (user_id, club_id) VALUES (?1, ?2)",
+            rusqlite::params![new_id, club_id],
+        )?;
+        let members: Vec<i32> = get_clubs_by_user_id(&db, new_id)?;
+        assert_eq!(members, vec![club_id]);
         Ok(())
     }
 
@@ -685,33 +832,4 @@ mod tests {
         assert_ne!(salted, hash_and_salt_password("12345", "2"));
         Ok(())
     }
-}
-
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let db = Connection::open("example.db")?;
-    ensure_schema(&db)?;
-    seed_if_empty(&db)?;
-    let db = Arc::new(Mutex::new(db));
-    let app = Router::new()
-        .route("/api/user/{id}", get(get_user_json_by_id))
-        .route("/api/clubs-in/{id}", get(get_clubs_in_by_user_id))
-        .route("/api/club/{id}", get(get_club_json_by_id))
-        .route("/api/club/new", post(api_make_club))
-        .route("/api/subspace/new", post(api_make_subspace))
-        .route("/api/club/{id}/subspaces", post(get_subspaces_json_by_club_id))
-        .route("/api/subspace/{id}", post(get_subspace_json_by_id))
-        .route("/api/subspace/{id}/messages", post(get_messages_by_subspace_id))
-        .route("/api/subspace/{id}/messages/new", post(create_message))
-        .route("/api/signup", post(sign_up))
-        .route("/api/login", post(login))
-        .with_state(db)
-        .fallback_service(ServeDir::new("static"));
-
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    let listener = TcpListener::bind(addr).await?;
-    println!("Listening on http://{addr}");
-    axum::serve(listener, app).await?;
-
-    Ok(())
 }

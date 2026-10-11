@@ -110,10 +110,19 @@ function addClub(club, subspaces) {
     }
     clubEl.addEventListener("click", (e) => {
         if (e.target.closest(".leaf")) return;
-        bodyEl.classList.toggle("collapsed");
+        const willOpen = bodyEl.classList.contains("collapsed");
+        document.querySelectorAll(".club").forEach(el => {
+            el.classList.remove("open");
+            el.querySelector(".club-body").classList.add("collapsed");
+        });
+        if (willOpen) {
+            clubEl.classList.add("open");
+            bodyEl.classList.remove("collapsed");
+        }
     });
     clubEl.appendChild(bodyEl);
     rooms.appendChild(clubEl);
+    return clubEl;
 }
 function clearFeed() {
     document.querySelector(".scroll").innerHTML = "";
@@ -141,14 +150,25 @@ let userData = await getUserById(userId);
 changeMyName(userData.name);
 let clubsIds = await getClubsByUserId(userId).then(clubsIds => clubsIds.clubs);
 let firstSubspaceId = null;
+let firstClubEl = null;
 for (let clubId of clubsIds) {
     const club = await getClubById(clubId);
     const data = await getSubspacesByClubId(clubId);
-    addClub(club, data.subspaces);
+    const clubEl = addClub(club, data.subspaces);
+    if (firstClubEl === null) {
+        firstClubEl = clubEl;
+    }
     if (firstSubspaceId === null && data.subspaces.length > 0) {
         firstSubspaceId = data.subspaces[0].id;
     }
 }
+document.querySelectorAll(".club").forEach(el => {
+    if (el === firstClubEl) {
+        el.classList.add("open");
+    } else {
+        el.querySelector(".club-body").classList.add("collapsed");
+    }
+});
 if (firstSubspaceId !== null) {
     await selectSubspace(firstSubspaceId);
 }
@@ -212,16 +232,18 @@ document.getElementById("message-input").addEventListener("keydown", e => {
 setInterval(async () => {
     await loadMessages();
 }, 1000);
-function createClub() {
-    let name = prompt("Club name");
-    let image = prompt("Club image URL");
-    if (!name) {
-        return;
+async function createClub(name, image) {
+    if (name === undefined) {
+        name = prompt("Club name");
+        if (!name) {
+            return;
+        }
+        image = prompt("Club image URL");
     }
     if (!image) {
         image = "null";
     }
-    fetch(`/api/club/new`, {
+    const res = await fetch(`/api/club/new`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
@@ -232,10 +254,247 @@ function createClub() {
             "owner_id": userId,
             "owner_password": sessionStorage.getItem("passHash")
         })
-    }).then(res => res.json())
-        .then(async data => {
-            const club = await getClubById(data.club_id);
-            const subspaces = await getSubspacesByClubId(data.club_id);
-            addClub(club, subspaces.subspaces);
-        });
+    });
+    if (!res.ok) {
+        throw new Error(await res.text());
+    }
+    const data = await res.json();
+    const club = await getClubById(data.club_id);
+    const subspaces = await getSubspacesByClubId(data.club_id);
+    addClub(club, subspaces.subspaces);
+    return data;
 }
+async function createSubspace(clubId, name, parentId = null) {
+    const res = await fetch(`/api/subspace/new`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            "name": name,
+            "parent_id": parentId,
+            "club_id": clubId,
+            "owner_id": userId,
+            "owner_password": sessionStorage.getItem("passHash")
+        })
+    });
+    if (!res.ok) {
+        throw new Error(await res.text());
+    }
+    return res.json();
+}
+async function addClubMember(clubId, email) {
+    const res = await fetch(`/api/club/${clubId}/members`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            "email": email,
+            "user_id": userId,
+            "passwordhash": sessionStorage.getItem("passHash")
+        })
+    });
+    if (!res.ok) {
+        throw new Error(await res.text());
+    }
+    return res.json();
+}
+// Expected contract for the upcoming endpoint:
+// POST /api/clubs/mine with {user_id, passwordhash} -> {"clubs": [{id, name, ...}]}
+// (bare [ids] also tolerated and resolved via /api/club/{id})
+async function getOwnedClubs() {
+    const res = await fetch(`/api/clubs/mine`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(authBody())
+    });
+    if (!res.ok) {
+        throw new Error("clubs/mine failed: " + res.status);
+    }
+    return res.json();
+}
+function renderOwnedSubspace(body, subspace, depth) {
+    const sub = document.createElement("div");
+    sub.classList.add("owned-sub");
+    if (depth > 0) {
+        sub.classList.add("deep");
+    }
+    sub.innerText = subspace.name;
+    body.appendChild(sub);
+    for (let child of subspace.children) {
+        renderOwnedSubspace(body, child, depth + 1);
+    }
+}
+function flattenSubspaceOptions(subspaces) {
+    const out = [];
+    function walk(nodes, depth) {
+        for (let node of nodes) {
+            out.push({ id: node.id, label: "— ".repeat(depth) + node.name });
+            walk(node.children || [], depth + 1);
+        }
+    }
+    walk(subspaceTree(subspaces), 0);
+    return out;
+}
+async function loadOwnedClubs() {
+    const box = document.getElementById("owned-clubs");
+    box.innerHTML = "";
+    let items;
+    try {
+        items = (await getOwnedClubs()).clubs || [];
+    } catch {
+        box.innerHTML = '<p class="muted">Could not load owned clubs.</p>';
+        return;
+    }
+    if (!items.length) {
+        box.innerHTML = '<p class="muted">No owned clubs yet.</p>';
+        return;
+    }
+    let firstOwned = true;
+    for (let item of items) {
+        const clubId = item.id ?? item;
+        const club = item.name ? item : await getClubById(clubId);
+        let subspaces = [];
+        try {
+            subspaces = (await getSubspacesByClubId(clubId)).subspaces || [];
+        } catch {
+            subspaces = [];
+        }
+        const row = document.createElement("div");
+        row.classList.add("owned-club");
+        const head = document.createElement("div");
+        head.classList.add("owned-head");
+        const title = document.createElement("strong");
+        title.innerText = club.name;
+        head.appendChild(title);
+        row.appendChild(head);
+        const body = document.createElement("div");
+        body.classList.add("owned-body");
+        for (let root of subspaceTree(subspaces)) {
+            renderOwnedSubspace(body, root, 0);
+        }
+        const form = document.createElement("div");
+        form.classList.add("new-sub");
+        const input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = "New subspace";
+        const parentSelect = document.createElement("select");
+        parentSelect.setAttribute("aria-label", "Parent subspace");
+        const topOption = document.createElement("option");
+        topOption.value = "";
+        topOption.innerText = "Top level";
+        parentSelect.appendChild(topOption);
+        for (let option of flattenSubspaceOptions(subspaces)) {
+            const el = document.createElement("option");
+            el.value = String(option.id);
+            el.innerText = option.label;
+            parentSelect.appendChild(el);
+        }
+        const add = document.createElement("button");
+        add.type = "button";
+        add.innerText = "Add";
+        add.addEventListener("click", async () => {
+            const subName = input.value.trim();
+            if (!subName) return;
+            const parentId = parentSelect.value ? parseInt(parentSelect.value) : null;
+            try {
+                await createSubspace(clubId, subName, parentId);
+                window.location.reload();
+            } catch (err) {
+                showModalError(err.message);
+            }
+        });
+        form.appendChild(input);
+        form.appendChild(parentSelect);
+        form.appendChild(add);
+        body.appendChild(form);
+        const memberForm = document.createElement("div");
+        memberForm.classList.add("new-sub");
+        const emailInput = document.createElement("input");
+        emailInput.type = "email";
+        emailInput.placeholder = "Add user by email";
+        const invite = document.createElement("button");
+        invite.type = "button";
+        invite.innerText = "Add";
+        invite.addEventListener("click", async () => {
+            const email = emailInput.value.trim();
+            if (!email) return;
+            try {
+                await addClubMember(clubId, email);
+                window.location.reload();
+            } catch (err) {
+                showModalError(err.message);
+            }
+        });
+        memberForm.appendChild(emailInput);
+        memberForm.appendChild(invite);
+        body.appendChild(memberForm);
+        head.addEventListener("click", () => {
+            const willOpen = body.classList.contains("collapsed");
+            box.querySelectorAll(".owned-club").forEach(el => {
+                el.classList.remove("open");
+                el.querySelector(".owned-body").classList.add("collapsed");
+            });
+            if (willOpen) {
+                row.classList.add("open");
+                body.classList.remove("collapsed");
+            }
+        });
+        row.appendChild(body);
+        if (firstOwned) {
+            firstOwned = false;
+            row.classList.add("open");
+        } else {
+            body.classList.add("collapsed");
+        }
+        box.appendChild(row);
+    }
+}
+const settingsModal = document.getElementById("settings-modal");
+function openSettings() {
+    settingsModal.hidden = false;
+    loadOwnedClubs();
+}
+function closeSettings() {
+    settingsModal.hidden = true;
+}
+function showModalError(message) {
+    let el = document.getElementById("modal-error");
+    if (!el) {
+        el = document.createElement("p");
+        el.id = "modal-error";
+        el.className = "form-error";
+        document.querySelector(".modal").appendChild(el);
+    }
+    el.textContent = message;
+    el.hidden = false;
+}
+document.getElementById("settings-btn").addEventListener("click", openSettings);
+document.getElementById("settings-close").addEventListener("click", closeSettings);
+settingsModal.addEventListener("click", (e) => {
+    if (e.target === settingsModal) {
+        closeSettings();
+    }
+});
+document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !settingsModal.hidden) {
+        closeSettings();
+    }
+});
+document.getElementById("new-club-btn").addEventListener("click", async () => {
+    const nameInput = document.getElementById("new-club-name");
+    const imageInput = document.getElementById("new-club-image");
+    const name = nameInput.value.trim();
+    if (!name) {
+        return;
+    }
+    try {
+        await createClub(name, imageInput.value.trim());
+        window.location.reload();
+    } catch (err) {
+        showModalError(err.message);
+    }
+});

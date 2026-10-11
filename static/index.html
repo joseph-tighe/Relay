@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Relay</title>
-    <link rel="stylesheet" href="/css/styles.css?v=35">
+    <link rel="stylesheet" href="/css/styles.css?v=41">
 </head>
 <body>
     <div class="app">
@@ -15,7 +15,7 @@
                 <!-- clubs go here -->
             </nav>
 
-            <div class="me-row"><span class="me">__</span><div><strong class="username">User</strong></div><span class="gear" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span></div>
+            <div class="me-row"><span class="me">__</span><div><strong class="username">User</strong></div><button type="button" class="gear" id="settings-btn" aria-label="Settings"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>
         </aside>
 
         <main class="feed">
@@ -27,7 +27,26 @@
                 <input class="box" id="message-input" type="text" placeholder="Write a message…" aria-label="Write a message">
             </div>
         </main>
-        <script src="/js/index.js?v=3" type="module"></script>
+        <script src="/js/index.js?v=9" type="module"></script>
+    </div>
+
+    <div class="modal-backdrop" id="settings-modal" hidden>
+        <div class="modal" role="dialog" aria-label="Settings">
+            <div class="modal-head">
+                <strong>Settings</strong>
+                <button type="button" class="modal-close" id="settings-close" aria-label="Close settings">×</button>
+            </div>
+            <section class="modal-section">
+                <h3>New club</h3>
+                <input id="new-club-name" type="text" placeholder="Club name" autocomplete="off">
+                <input id="new-club-image" type="text" placeholder="Image URL (optional)" autocomplete="off">
+                <button type="button" class="btn-primary" id="new-club-btn">Create club</button>
+            </section>
+            <section class="modal-section">
+                <h3>Your clubs</h3>
+                <div id="owned-clubs"><p class="muted">Loading…</p></div>
+            </section>
+        </div>
     </div>
 </body>
 </html>
