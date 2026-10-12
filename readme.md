@@ -7,6 +7,11 @@ Relay is a minamalistic chatting site built specifically for school clubs.
 
 Subspaces to organize clubs.
 
+## How it works
+
+Relay uses Axum for handing requests, and sqlight for database interactions.
+Fot some schools who don't like any communication platform for their clubs, axum will eventually have the option to use the canvas api, to let them handle the backend.
+
 ## Prerequisites
 
 - Rust
