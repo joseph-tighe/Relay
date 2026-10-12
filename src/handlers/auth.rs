@@ -6,7 +6,7 @@ use axum::{
 use rusqlite::Connection;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::{auth::check_password, db::user::{add_user, email_exists, get_user_auth_by_email}};
+use crate::{auth::{cached_verify, needs_rehash, rehash_password}, db::user::{add_user, email_exists, get_user_auth_by_email}};
 use crate::db::club::add_user_to_club;
 use crate::models::{UserPassword, Login};
 use crate::auth::{check_authenticity};
@@ -39,22 +39,29 @@ pub async fn login(
     State(db): State<Arc<Mutex<Connection>>>,
     Json(user): Json<Login>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let db = db.lock().await;
-    if !email_exists(&db, &user.email)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
-    {
-        return Err((StatusCode::BAD_REQUEST, "Email doesn't exists".to_string()));
-    }
-    let stored_user = get_user_auth_by_email(&db, &user.email)
-        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let Some((user_id, user_name, user_email, _)) = stored_user else {
+    // Fetch identity under a short lock, verify OFF lock.
+    let stored_user = {
+        let db = db.lock().await;
+        if !email_exists(&db, &user.email)
+            .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+        {
+            return Err((StatusCode::BAD_REQUEST, "Email doesn't exists".to_string()));
+        }
+        get_user_auth_by_email(&db, &user.email)
+            .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+    };
+    let Some((user_id, user_name, user_email, password_hash)) = stored_user else {
         return Err((
             StatusCode::UNAUTHORIZED,
             "Invalid email or password".to_string(),
         ));
     };
-    if check_password(user_id, &user.password.to_string(), &db).is_err() {
+    if !cached_verify(user_id, &user.password, &password_hash) {
         return Err((StatusCode::BAD_REQUEST, "Invalid password".to_string()));
+    }
+    if needs_rehash(&password_hash) {
+        let db = db.lock().await;
+        let _ = rehash_password(&db, user_id, &user.password);
     }
     let json =
         format!("{{\"id\": {user_id}, \"name\": \"{user_name}\", \"email\": \"{user_email}\"}}");

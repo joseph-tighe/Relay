@@ -21,11 +21,34 @@ async function readJsonResponse(response) {
     }
     return JSON.parse(body);
 }
+function formValue(form, fieldName) {
+    const el = form.querySelector(`[name="${fieldName}"]`);
+    return el ? el.value : "";
+}
+function showFormError(form, message) {
+    let el = form.querySelector(".form-error");
+    if (!el) {
+        el = document.createElement("p");
+        el.className = "form-error";
+        form.appendChild(el);
+    }
+    el.textContent = message;
+}
+function cleanErrorMessage(error) {
+    return String(error.message || error).replace(/^Request failed \(\d+\): /, "");
+}
+function clearFormErrors() {
+    document.querySelectorAll(".form-error").forEach(el => el.remove());
+}
 document.getElementsByClassName("form-signup")[0].getElementsByTagName("button")[0].addEventListener("click", e => {
-    let name = document.getElementsByClassName("form-signup")[0].name.value;
-    let email = document.getElementsByClassName("form-signup")[0].email.value;
-    let password = document.getElementsByClassName("form-signup")[0].password.value;
+    const form = document.getElementsByClassName("form-signup")[0];
+    // NOTE: form.name is the form's own name prop, NOT the Name input.
+    // Must use querySelector or form.elements.
+    let name = formValue(form, "name").trim();
+    let email = formValue(form, "email").trim();
+    let password = formValue(form, "password");
     if (!name || !email || !password) {
+        showFormError(form, "Please fill in name, email, and password.");
         return;
     }
     let passwordHash = String(createHash(password));
@@ -49,12 +72,17 @@ document.getElementsByClassName("form-signup")[0].getElementsByTagName("button")
             sessionStorage.setItem("userId", user.id);
             sessionStorage.setItem("passHash", passwordHash);
             window.location.href = "/";
-        }).catch(error => console.error("Signup failed:", error));
+        }).catch(error => {
+            console.error("Signup failed:", error);
+            showFormError(form, cleanErrorMessage(error));
+        });
 });
 document.getElementsByClassName("form-login")[0].getElementsByTagName("button")[0].addEventListener("click", e => {
-    let email = document.getElementsByClassName("form-login")[0].email.value;
-    let password = document.getElementsByClassName("form-login")[0].password.value;
+    const form = document.getElementsByClassName("form-login")[0];
+    let email = formValue(form, "email").trim();
+    let password = formValue(form, "password");
     if (!email || !password) {
+        showFormError(form, "Please fill in email and password.");
         return;
     }
     let passwordHash = String(createHash(password));
@@ -72,5 +100,10 @@ document.getElementsByClassName("form-login")[0].getElementsByTagName("button")[
             sessionStorage.setItem("userId", user.id);
             sessionStorage.setItem("passHash", passwordHash);
             window.location.href = "/";
-        }).catch(error => console.error("Login failed:", error));
+        }).catch(error => {
+            console.error("Login failed:", error);
+            showFormError(form, cleanErrorMessage(error));
+        });
 });
+document.getElementById("tab-login").addEventListener("change", clearFormErrors);
+document.getElementById("tab-signup").addEventListener("change", clearFormErrors);

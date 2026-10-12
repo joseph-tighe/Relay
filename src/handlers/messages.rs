@@ -6,19 +6,42 @@ use axum::{
 use rusqlite::Connection;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::auth::{check_password};
+use crate::auth::{check_authenticity, cached_verify, get_password_hash, needs_rehash, rehash_password};
 use crate::db::messages::{add_message, read_messages_by_subspace_id};
 use crate::models::{NewMessage, Auth};
-use crate::auth::{check_authenticity};
+use crate::db::club::get_club_members;
 
 pub async fn get_messages_by_subspace_id(
     Path(id): Path<i32>,
     State(db): State<Arc<Mutex<Connection>>>,
     Json(auth): Json<Auth>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    // Fetch hash under lock, verify OFF lock so slow Argon never blocks others.
+    let stored = {
+        let db = db.lock().await;
+        get_password_hash(&db, auth.user_id)
+            .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+    };
+
+    let Some(stored) = stored else {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    };
+    if !cached_verify(auth.user_id, &auth.passwordhash, &stored) {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    }
+    if needs_rehash(&stored) {
+        let db = db.lock().await;
+        let _ = rehash_password(&db, auth.user_id, &auth.passwordhash);
+    }
     let db = db.lock().await;
-    check_password(auth.user_id, &auth.passwordhash.to_string(), &db)
-        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
+
+    // Check membership
+    let members = get_club_members(&db, id)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    if !members.contains(&auth.user_id) {
+        return Err((StatusCode::UNAUTHORIZED, "Not a member".to_string()));
+    }
+
     let messages = read_messages_by_subspace_id(&db, id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     let mut messages_json = Vec::new();
@@ -37,13 +60,31 @@ pub async fn create_message(
     State(db): State<Arc<Mutex<Connection>>>,
     Json(message): Json<NewMessage>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    let db = db.lock().await;
-    check_password(message.user_id, &message.passwordhash.to_string(), &db)
-        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
+    let stored = {
+        let db = db.lock().await;
+        get_password_hash(&db, message.user_id)
+            .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+    };
+    let Some(stored) = stored else {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    };
+    if !cached_verify(message.user_id, &message.passwordhash, &stored) {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    }
+    if needs_rehash(&stored) {
+        let db = db.lock().await;
+        let _ = rehash_password(&db, message.user_id, &message.passwordhash);
+    }
     check_authenticity(&message.text).then(|| ()).ok_or((
         StatusCode::BAD_REQUEST,
         "Invalid message content".to_string(),
     ))?;
+    let db = db.lock().await;
+    let members = get_club_members(&db, id)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    if !members.contains(&message.user_id) {
+        return Err((StatusCode::UNAUTHORIZED, "Not a member".to_string()));
+    }
     add_message(&db, message.user_id, id, &message.text)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     let message = read_messages_by_subspace_id(&db, id)

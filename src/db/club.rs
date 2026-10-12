@@ -49,3 +49,15 @@ pub fn make_new_club(
     )?;
     Ok(db.last_insert_rowid() as i32)
 }
+pub fn get_club_members(
+    db: &Connection,
+    id: i32,
+) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
+    let mut stmt = db.prepare("SELECT user_id FROM club_memberships WHERE club_id = ?1")?;
+    let members = stmt.query_map([id], |row| row.get(0))?;
+    let mut members_vec = Vec::new();
+    for member in members {
+        members_vec.push(member?);
+    }
+    Ok(members_vec)
+}

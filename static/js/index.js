@@ -128,13 +128,20 @@ function clearFeed() {
     document.querySelector(".scroll").innerHTML = "";
     seenMessageIds.clear();
 }
+let loadMessagesInFlight = false;
 async function loadMessages() {
-    if (!activeSubspaceId) return;
-    const data = await getMessagesBySubspaceId(activeSubspaceId);
-    for (let message of data.messages) {
-        if (seenMessageIds.has(message.id)) continue;
-        seenMessageIds.add(message.id);
-        await renderMessage(message);
+    if (!activeSubspaceId || loadMessagesInFlight) return;
+    if (document.hidden) return;
+    loadMessagesInFlight = true;
+    try {
+        const data = await getMessagesBySubspaceId(activeSubspaceId);
+        for (let message of data.messages) {
+            if (seenMessageIds.has(message.id)) continue;
+            seenMessageIds.add(message.id);
+            await renderMessage(message);
+        }
+    } finally {
+        loadMessagesInFlight = false;
     }
 }
 async function selectSubspace(subspaceId) {
@@ -231,7 +238,7 @@ document.getElementById("message-input").addEventListener("keydown", e => {
 });
 setInterval(async () => {
     await loadMessages();
-}, 1000);
+}, 3000);
 async function createClub(name, image) {
     if (name === undefined) {
         name = prompt("Club name");

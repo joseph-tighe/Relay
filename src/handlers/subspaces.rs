@@ -7,7 +7,7 @@ use rusqlite::Connection;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use rusqlite::OptionalExtension; // for :64
-use crate::auth::{check_password};
+use crate::auth::{cached_verify, get_password_hash, needs_rehash, rehash_password};
 use crate::db::subspaces::{get_subspaces_by_club_id, get_subspace_by_id, make_new_subspace};
 use crate::models::{NewSubspace, Auth};
 use crate::auth::{check_authenticity};
@@ -24,9 +24,22 @@ pub async fn get_subspaces_json_by_club_id(
     State(db): State<Arc<Mutex<Connection>>>,
     Json(auth): Json<Auth>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let stored = {
+        let db = db.lock().await;
+        get_password_hash(&db, auth.user_id)
+            .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+    };
+    let Some(stored) = stored else {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    };
+    if !cached_verify(auth.user_id, &auth.passwordhash, &stored) {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    }
+    if needs_rehash(&stored) {
+        let db = db.lock().await;
+        let _ = rehash_password(&db, auth.user_id, &auth.passwordhash);
+    }
     let db = db.lock().await;
-    check_password(auth.user_id, &auth.passwordhash.to_string(), &db)
-        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
     let subspaces = get_subspaces_by_club_id(&db, id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     let mut subspaces_json = Vec::new();
@@ -46,9 +59,22 @@ pub async fn get_subspace_json_by_id(
     State(db): State<Arc<Mutex<Connection>>>,
     Json(auth): Json<Auth>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let stored = {
+        let db = db.lock().await;
+        get_password_hash(&db, auth.user_id)
+            .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+    };
+    let Some(stored) = stored else {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    };
+    if !cached_verify(auth.user_id, &auth.passwordhash, &stored) {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    }
+    if needs_rehash(&stored) {
+        let db = db.lock().await;
+        let _ = rehash_password(&db, auth.user_id, &auth.passwordhash);
+    }
     let db = db.lock().await;
-    check_password(auth.user_id, &auth.passwordhash.to_string(), &db)
-        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
     let subspace = get_subspace_by_id(&db, id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     let json = format!(
@@ -64,9 +90,22 @@ pub async fn api_make_subspace(
     State(db): State<Arc<Mutex<Connection>>>,
     Json(new_subspace): Json<NewSubspace>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let stored = {
+        let db = db.lock().await;
+        get_password_hash(&db, new_subspace.owner_id)
+            .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+    };
+    let Some(stored) = stored else {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    };
+    if !cached_verify(new_subspace.owner_id, &new_subspace.owner_password, &stored) {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    }
+    if needs_rehash(&stored) {
+        let db = db.lock().await;
+        let _ = rehash_password(&db, new_subspace.owner_id, &new_subspace.owner_password);
+    }
     let db = db.lock().await;
-    check_password(new_subspace.owner_id, &new_subspace.owner_password.to_string(), &db)
-        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
     let owner: Option<i32> = db
         .query_row(
             "SELECT owner_id FROM clubs WHERE id = ?1",

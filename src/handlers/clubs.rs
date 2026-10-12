@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use rusqlite::OptionalExtension; // for .optional() at :59, :75
 use crate::models::{NewClub, NewMember, Auth};
-use crate::auth::{check_password};
+use crate::auth::{cached_verify, get_password_hash, needs_rehash, rehash_password};
 use crate::db::user::{get_user_by_id};
 use crate::db::club::{make_new_club, add_user_to_club, get_club_by_id};
 use crate::db::subspaces::make_new_subspace;
@@ -28,9 +28,22 @@ pub async fn api_make_club(
     State(db): State<Arc<Mutex<Connection>>>,
     Json(new_club): Json<NewClub>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let stored = {
+        let db = db.lock().await;
+        get_password_hash(&db, new_club.owner_id)
+            .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+    };
+    let Some(stored) = stored else {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    };
+    if !cached_verify(new_club.owner_id, &new_club.owner_password, &stored) {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    }
+    if needs_rehash(&stored) {
+        let db = db.lock().await;
+        let _ = rehash_password(&db, new_club.owner_id, &new_club.owner_password);
+    }
     let db = db.lock().await;
-    check_password(new_club.owner_id, &new_club.owner_password.to_string(), &db)
-        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
     let owner_id = new_club.owner_id;
     get_user_by_id(&db, owner_id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
@@ -55,9 +68,22 @@ pub async fn api_add_club_member(
     State(db): State<Arc<Mutex<Connection>>>,
     Json(member): Json<NewMember>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let stored = {
+        let db = db.lock().await;
+        get_password_hash(&db, member.user_id)
+            .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+    };
+    let Some(stored) = stored else {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    };
+    if !cached_verify(member.user_id, &member.passwordhash, &stored) {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    }
+    if needs_rehash(&stored) {
+        let db = db.lock().await;
+        let _ = rehash_password(&db, member.user_id, &member.passwordhash);
+    }
     let db = db.lock().await;
-    check_password(member.user_id, &member.passwordhash.to_string(), &db)
-        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
     let owner: Option<Option<i32>> = db
         .query_row(
             "SELECT owner_id FROM clubs WHERE id = ?1",
@@ -94,9 +120,22 @@ pub async fn get_clubs_owned_by_user_id(
     State(db): State<Arc<Mutex<Connection>>>,
     Json(auth): Json<Auth>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let stored = {
+        let db = db.lock().await;
+        get_password_hash(&db, auth.user_id)
+            .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
+    };
+    let Some(stored) = stored else {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    };
+    if !cached_verify(auth.user_id, &auth.passwordhash, &stored) {
+        return Err((StatusCode::UNAUTHORIZED, "Invalid password".to_string()));
+    }
+    if needs_rehash(&stored) {
+        let db = db.lock().await;
+        let _ = rehash_password(&db, auth.user_id, &auth.passwordhash);
+    }
     let db = db.lock().await;
-    check_password(auth.user_id, &auth.passwordhash.to_string(), &db)
-        .map_err(|error| (StatusCode::UNAUTHORIZED, error.to_string()))?;
     let mut stmt = db
         .prepare("SELECT id, name, image FROM clubs WHERE owner_id = ?1 ORDER BY id ASC")
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;

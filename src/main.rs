@@ -19,8 +19,6 @@ pub type AppState = Arc<Mutex<Connection>>;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //setup db
     let db = Connection::open("example.db")?;
-    crate::db::schema::ensure_schema(&db)?;
-    crate::db::schema::seed_if_empty(&db)?;
     let db = Arc::new(Mutex::new(db));
 
     //start server
