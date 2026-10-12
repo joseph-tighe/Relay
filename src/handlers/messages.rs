@@ -1,6 +1,6 @@
 use axum::{
     extract::{Path, State, Json},
-    http::{header, StatusCode},
+    http::StatusCode,
     response::IntoResponse,
 };
 use rusqlite::Connection;
@@ -9,7 +9,8 @@ use tokio::sync::Mutex;
 use crate::auth::{check_authenticity, cached_verify, get_password_hash, needs_rehash, rehash_password};
 use crate::db::messages::{add_message, read_messages_by_subspace_id};
 use crate::models::{NewMessage, Auth};
-use crate::db::club::get_club_members;
+use crate::db::club::is_club_member;
+use crate::db::subspaces::get_club_id_by_subspace;
 
 pub async fn get_messages_by_subspace_id(
     Path(id): Path<i32>,
@@ -35,24 +36,33 @@ pub async fn get_messages_by_subspace_id(
     }
     let db = db.lock().await;
 
-    // Check membership
-    let members = get_club_members(&db, id)
+    // Resolve the owning club: subspace IDs and club IDs share one integer
+    // namespace, so never use a subspace ID as a club ID.
+    let club_id = get_club_id_by_subspace(&db, id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    if !members.contains(&auth.user_id) {
+    let Some(club_id) = club_id else {
+        return Err((StatusCode::NOT_FOUND, "No such subspace".to_string()));
+    };
+    let member = is_club_member(&db, auth.user_id, club_id)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    if !member {
         return Err((StatusCode::UNAUTHORIZED, "Not a member".to_string()));
     }
 
     let messages = read_messages_by_subspace_id(&db, id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let mut messages_json = Vec::new();
-    for message in messages {
-        messages_json.push(format!(
-            "{{\"id\": {}, \"text\": \"{}\", \"userId\": {}, \"timestamp\": \"{}\"}}",
-            message.0, message.1, message.2, message.3
-        ));
-    }
-    let json = format!("{{\"messages\": [{}]}}", messages_json.join(", "));
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+    let messages_json: Vec<serde_json::Value> = messages
+        .into_iter()
+        .map(|message| {
+            serde_json::json!({
+                "id": message.0,
+                "text": message.1,
+                "userId": message.2,
+                "timestamp": message.3,
+            })
+        })
+        .collect();
+    Ok(Json(serde_json::json!({ "messages": messages_json })))
 }
 
 pub async fn create_message(
@@ -80,21 +90,30 @@ pub async fn create_message(
         "Invalid message content".to_string(),
     ))?;
     let db = db.lock().await;
-    let members = get_club_members(&db, id)
+    let club_id = get_club_id_by_subspace(&db, id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    if !members.contains(&message.user_id) {
+    let Some(club_id) = club_id else {
+        return Err((StatusCode::NOT_FOUND, "No such subspace".to_string()));
+    };
+    let member = is_club_member(&db, message.user_id, club_id)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    if !member {
         return Err((StatusCode::UNAUTHORIZED, "Not a member".to_string()));
     }
     add_message(&db, message.user_id, id, &message.text)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let message = read_messages_by_subspace_id(&db, id)
+    let messages = read_messages_by_subspace_id(&db, id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let json = format!(
-        "{{\"id\": {}, \"text\": \"{}\", \"userId\": {}, \"timestamp\": \"{}\"}}",
-        message[message.len() - 1].0,
-        message[message.len() - 1].1,
-        message[message.len() - 1].2,
-        message[message.len() - 1].3
-    );
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+    let Some(last) = messages.last() else {
+        return Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Message not found after insert".to_string(),
+        ));
+    };
+    Ok(Json(serde_json::json!({
+        "id": last.0,
+        "text": last.1,
+        "userId": last.2,
+        "timestamp": last.3,
+    })))
 }

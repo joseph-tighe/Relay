@@ -669,9 +669,9 @@ async fn subspaces_list_get_and_create() {
 
 #[tokio::test]
 async fn messages_create_list_and_guards() {
-    // NOTE: current membership check looks up club_memberships by the
-    // subspace id, so tests use the seeded club 1 / subspace 1 where the
-    // ids coincide.
+    // Membership is resolved via the subspace's owning club (not the raw
+    // subspace id), so use a second club/subspace pair with divergent ids
+    // to prove the namespace handling, plus the seeded club 1 / subspace 1.
     let (state, user_id, _, subspace_id) = seeded_state().await;
 
     // stranger (non-member) cannot read
@@ -742,6 +742,43 @@ async fn messages_create_list_and_guards() {
             passwordhash: "mallorypw".into(),
             text: "hi".into(),
             user_id: stranger,
+        }),
+    )
+    .await
+    .err().unwrap();
+    assert_eq!(err.0, StatusCode::UNAUTHORIZED);
+
+    // Divergent ids: club 2 owns subspace 2. Mallory joins club 2 only.
+    // She must read subspace 2 (member of its club) but not subspace 1.
+    // This proves membership resolves via the owning club, not the raw id.
+    let other_subspace = {
+        let db = state.lock().await;
+        let club2 = make_new_club(&db, "Second", "img.png", stranger).unwrap();
+        assert_ne!(club2, subspace_id, "need divergent club/subspace ids");
+        let sub2 = make_new_subspace(&db, "Second Main", None, club2).unwrap();
+        add_user_to_club(&db, stranger, club2).unwrap();
+        sub2
+    };
+    let res = get_messages_by_subspace_id(
+        Path(other_subspace),
+        State(state.clone()),
+        Json(Auth {
+            user_id: stranger,
+            passwordhash: "mallorypw".into(),
+        }),
+    )
+    .await
+    .unwrap();
+    let body = body_text(res.into_response()).await;
+    assert!(body.contains("messages"));
+
+    // owner of club 1 is NOT a member of club 2 -> denied on subspace 2
+    let err = get_messages_by_subspace_id(
+        Path(other_subspace),
+        State(state.clone()),
+        Json(Auth {
+            user_id,
+            passwordhash: "secret123".into(),
         }),
     )
     .await

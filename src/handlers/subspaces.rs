@@ -1,23 +1,17 @@
 use axum::{
     extract::{Path, State, Json},
-    http::{header, StatusCode},
+    http::StatusCode,
     response::IntoResponse,
 };
 use rusqlite::Connection;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use rusqlite::OptionalExtension; // for :64
+use rusqlite::OptionalExtension; // for .optional()
 use crate::auth::{cached_verify, get_password_hash, needs_rehash, rehash_password};
-use crate::db::subspaces::{get_subspaces_by_club_id, get_subspace_by_id, make_new_subspace};
+use crate::db::subspaces::{get_subspaces_by_club_id, get_subspace_by_id, make_new_subspace, get_club_id_by_subspace};
+use crate::db::club::is_club_member;
 use crate::models::{NewSubspace, Auth};
 use crate::auth::{check_authenticity};
-
-fn parent_id_json(parent_id: Option<i32>) -> String {
-    match parent_id {
-        Some(id) => id.to_string(),
-        None => "null".to_string(),
-    }
-}
 
 pub async fn get_subspaces_json_by_club_id(
     Path(id): Path<i32>,
@@ -40,19 +34,24 @@ pub async fn get_subspaces_json_by_club_id(
         let _ = rehash_password(&db, auth.user_id, &auth.passwordhash);
     }
     let db = db.lock().await;
+    let member = is_club_member(&db, auth.user_id, id)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    if !member {
+        return Err((StatusCode::UNAUTHORIZED, "Not a member".to_string()));
+    }
     let subspaces = get_subspaces_by_club_id(&db, id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let mut subspaces_json = Vec::new();
-    for subspace in subspaces {
-        subspaces_json.push(format!(
-            "{{\"id\": {}, \"name\": \"{}\", \"parent_id\": {}}}",
-            subspace.0,
-            subspace.1,
-            parent_id_json(subspace.2)
-        ));
-    }
-    let json = format!("{{\"subspaces\": [{}]}}", subspaces_json.join(", "));
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+    let subspaces_json: Vec<serde_json::Value> = subspaces
+        .into_iter()
+        .map(|subspace| {
+            serde_json::json!({
+                "id": subspace.0,
+                "name": subspace.1,
+                "parent_id": subspace.2,
+            })
+        })
+        .collect();
+    Ok(Json(serde_json::json!({ "subspaces": subspaces_json })))
 }
 pub async fn get_subspace_json_by_id(
     Path(id): Path<i32>,
@@ -75,16 +74,24 @@ pub async fn get_subspace_json_by_id(
         let _ = rehash_password(&db, auth.user_id, &auth.passwordhash);
     }
     let db = db.lock().await;
+    let club_id = get_club_id_by_subspace(&db, id)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    let Some(club_id) = club_id else {
+        return Err((StatusCode::NOT_FOUND, "No such subspace".to_string()));
+    };
+    let member = is_club_member(&db, auth.user_id, club_id)
+        .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
+    if !member {
+        return Err((StatusCode::UNAUTHORIZED, "Not a member".to_string()));
+    }
     let subspace = get_subspace_by_id(&db, id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let json = format!(
-        "{{\"id\": {}, \"name\": \"{}\", \"parent_id\": {}, \"club_id\": {}}}",
-        subspace.0,
-        subspace.1,
-        parent_id_json(subspace.2),
-        subspace.3
-    );
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+    Ok(Json(serde_json::json!({
+        "id": subspace.0,
+        "name": subspace.1,
+        "parent_id": subspace.2,
+        "club_id": subspace.3,
+    })))
 }
 pub async fn api_make_subspace(
     State(db): State<Arc<Mutex<Connection>>>,

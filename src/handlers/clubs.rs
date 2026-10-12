@@ -1,6 +1,6 @@
 use axum::{
      extract::{Path, State, Json},
-     http::{header, StatusCode},
+     http::StatusCode,
      response::IntoResponse,
 };
 use rusqlite::Connection;
@@ -21,8 +21,7 @@ pub async fn get_club_json_by_id(
     let db = db.lock().await;
     let (club_name, club_image) = get_club_by_id(&db, id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    let json = format!("{{\"name\": \"{club_name}\", \"image\": \"{club_image}\"}}");
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+    Ok(Json(serde_json::json!({ "name": club_name, "image": club_image })))
 }
 pub async fn api_make_club(
     State(db): State<Arc<Mutex<Connection>>>,
@@ -60,7 +59,6 @@ pub async fn api_make_club(
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     add_user_to_club(&db, owner_id, club_id)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-    println!("Created club {} with subspace {} for user {}", club_id, subspace_id, owner_id);
     Ok(Json(serde_json::json!({ "club_id": club_id, "subspace_id": subspace_id })))
 }
 pub async fn api_add_club_member(
@@ -152,11 +150,11 @@ pub async fn get_clubs_owned_by_user_id(
     for club in clubs {
         let (club_id, club_name, club_image) = club
             .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
-        clubs_json.push(format!(
-            "{{\"id\": {}, \"name\": \"{}\", \"image\": \"{}\"}}",
-            club_id, club_name, club_image
-        ));
+        clubs_json.push(serde_json::json!({
+            "id": club_id,
+            "name": club_name,
+            "image": club_image,
+        }));
     }
-    let json = format!("{{\"clubs\": [{}]}}", clubs_json.join(", "));
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+    Ok(Json(serde_json::json!({ "clubs": clubs_json })))
 }

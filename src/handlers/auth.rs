@@ -1,6 +1,6 @@
 use axum::{
     extract::{State, Json},
-    http::{header, StatusCode},
+    http::StatusCode,
     response::IntoResponse,
 };
 use rusqlite::Connection;
@@ -29,11 +29,11 @@ pub async fn sign_up(
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     let user_id = db.last_insert_rowid();
     let _ = add_user_to_club(&mut db, user_id.to_string().parse::<i32>().unwrap(), 1);
-    let json = format!(
-        "{{\"name\": \"{}\", \"email\": \"{}\", \"id\": {}}}",
-        user.name, user.email, user_id
-    );
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+    Ok(Json(serde_json::json!({
+        "name": user.name,
+        "email": user.email,
+        "id": user_id,
+    })))
 }
 pub async fn login(
     State(db): State<Arc<Mutex<Connection>>>,
@@ -45,7 +45,7 @@ pub async fn login(
         if !email_exists(&db, &user.email)
             .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
         {
-            return Err((StatusCode::BAD_REQUEST, "Email doesn't exists".to_string()));
+            return Err((StatusCode::BAD_REQUEST, "Email doesn't exist".to_string()));
         }
         get_user_auth_by_email(&db, &user.email)
             .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
@@ -63,7 +63,10 @@ pub async fn login(
         let db = db.lock().await;
         let _ = rehash_password(&db, user_id, &user.password);
     }
-    let json =
-        format!("{{\"id\": {user_id}, \"name\": \"{user_name}\", \"email\": \"{user_email}\"}}");
-    Ok(([(header::CONTENT_TYPE, "application/json")], json))
+    let json = serde_json::json!({
+        "id": user_id,
+        "name": user_name,
+        "email": user_email,
+    });
+    Ok(Json(json))
 }

@@ -61,3 +61,18 @@ pub fn get_club_members(
     }
     Ok(members_vec)
 }
+
+/// True when `user_id` is a member of `club_id`. Use for authorization
+/// (not authentication): call after verifying the caller's password.
+pub fn is_club_member(
+    db: &Connection,
+    user_id: i32,
+    club_id: i32,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let member: bool = db.query_row(
+        "SELECT EXISTS(SELECT 1 FROM club_memberships WHERE user_id = ?1 AND club_id = ?2)",
+        rusqlite::params![user_id, club_id],
+        |row| row.get(0),
+    )?;
+    Ok(member)
+}

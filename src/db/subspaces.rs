@@ -51,3 +51,21 @@ pub fn make_new_subspace(
     )?;
     Ok(db.last_insert_rowid() as i32)
 }
+
+/// Resolve the owning club of a subspace. Returns `None` when the subspace
+/// does not exist. Needed because subspace IDs and club IDs share one
+/// integer namespace across tables: never use a subspace ID as a club ID.
+pub fn get_club_id_by_subspace(
+    db: &Connection,
+    subspace_id: i32,
+) -> Result<Option<i32>, Box<dyn std::error::Error>> {
+    use rusqlite::OptionalExtension;
+    let club_id: Option<i32> = db
+        .query_row(
+            "SELECT club_id FROM subspaces WHERE id = ?1",
+            [subspace_id],
+            |row| row.get(0),
+        )
+        .optional()?;
+    Ok(club_id)
+}
