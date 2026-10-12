@@ -15,19 +15,26 @@ pub async fn sign_up(
     State(db): State<Arc<Mutex<Connection>>>,
     Json(user): Json<UserPassword>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    //check if name is not an injection hack
     check_authenticity(&user.name)
         .then(|| ())
         .ok_or((StatusCode::BAD_REQUEST, "Invalid user name".to_string()))?;
-
+    //check if email is not an injection hack
+    check_authenticity(&user.email)
+        .then(|| ())
+        .ok_or((StatusCode::BAD_REQUEST, "Invalid email".to_string()))?;
+    //check if email exists
     let mut db = db.lock().await;
     if email_exists(&db, &user.email)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
     {
         return Err((StatusCode::BAD_REQUEST, "Email already exists".to_string()));
     }
+    //add user to db
     add_user(&mut db, &user.name, &user.email, &user.password)
         .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?;
     let user_id = db.last_insert_rowid();
+    //add user to defult club
     let _ = add_user_to_club(&mut db, user_id.to_string().parse::<i32>().unwrap(), 1);
     Ok(Json(serde_json::json!({
         "name": user.name,
@@ -39,14 +46,15 @@ pub async fn login(
     State(db): State<Arc<Mutex<Connection>>>,
     Json(user): Json<Login>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
-    // Fetch identity under a short lock, verify OFF lock.
     let stored_user = {
         let db = db.lock().await;
+        //does user exist
         if !email_exists(&db, &user.email)
             .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
         {
             return Err((StatusCode::BAD_REQUEST, "Email doesn't exist".to_string()));
         }
+        //get user
         get_user_auth_by_email(&db, &user.email)
             .map_err(|error| (StatusCode::INTERNAL_SERVER_ERROR, error.to_string()))?
     };
