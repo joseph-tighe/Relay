@@ -12,6 +12,7 @@ pub fn add_user_to_club(
     )?;
     Ok(())
 }
+#[allow(dead_code)]
 pub fn add_club(
     db: &Connection,
     name: &str,
@@ -49,6 +50,7 @@ pub fn make_new_club(
     )?;
     Ok(db.last_insert_rowid() as i32)
 }
+#[allow(dead_code)]
 pub fn get_club_members(
     db: &Connection,
     id: i32,
